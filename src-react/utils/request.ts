@@ -116,6 +116,14 @@ export const del = <T = any>(url: string, params?: object): Promise<T> => {
   return service.delete(url, { params }) as Promise<T>;
 };
 
+// 文件下载
+export const file = <T = any>(url: string, params?: object, method: 'get' | 'post' = 'get'): Promise<T> => {
+  if (method === 'post') {
+    return service.post(url, params, { responseType: 'blob' }) as Promise<T>;
+  }
+  return service.get(url, { params, responseType: 'blob' }) as Promise<T>;
+};
+
 // 文件上传
 export const upload = <T = any>(url: string, formData: FormData): Promise<T> => {
   return service.post(url, formData, {

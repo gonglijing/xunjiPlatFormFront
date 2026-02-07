@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Descriptions, Form, Input, message, Modal, Popconfirm, Space, Table, Tabs, Tag } from 'antd';
+import { Button, Card, Descriptions, Form, Input, message, Modal, Popconfirm, Space, Table, Tabs, Tag, Upload } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeftOutlined, UploadOutlined, DownloadOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import deviceApi from '../../../api/device';
@@ -30,10 +30,32 @@ const modelApiMap = {
   },
 } as const;
 
+const getCurrentTime = () => {
+  const date = new Date();
+  const year = date.getFullYear().toString();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  return `${year}${month}${day}${hours}${minutes}`;
+};
+
+const downloadBlob = (blob: Blob, fileName: string) => {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+};
+
 const ProductDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { productKey = '' } = useParams<{ productKey: string }>();
   const [loading, setLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [modelModalOpen, setModelModalOpen] = useState(false);
   const [modelModalType, setModelModalType] = useState<ModelTabType>('property');
   const [editingRow, setEditingRow] = useState<any>(null);
@@ -44,6 +66,8 @@ const ProductDetailPage: React.FC = () => {
   const [eventList, setEventList] = useState<any[]>([]);
   const [tagList, setTagList] = useState<any[]>([]);
   const [modelForm] = Form.useForm();
+
+  const currentProductKey = productInfo?.key || productInfo?.productKey || productKey;
 
   const fetchDetail = async () => {
     if (!productKey) return;
@@ -85,6 +109,47 @@ const ProductDetailPage: React.FC = () => {
       fetchDetail();
     } catch {
       message.error(nextStatus === 'deploy' ? '发布失败' : '取消发布失败');
+    }
+  };
+
+  const handleImportModel = async (options: any) => {
+    const { file, onSuccess, onError } = options || {};
+    if (!currentProductKey) {
+      message.error('缺少产品标识，无法导入');
+      onError?.(new Error('MISSING_PRODUCT_KEY'));
+      return;
+    }
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file as File);
+      formData.append('productKey', currentProductKey);
+      await deviceApi.product.importModel(formData);
+      message.success('物模型导入成功');
+      onSuccess?.({}, file);
+      fetchDetail();
+    } catch (error) {
+      message.error('物模型导入失败');
+      onError?.(error);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleExportModel = async () => {
+    if (!currentProductKey) {
+      message.error('缺少产品标识，无法导出');
+      return;
+    }
+    try {
+      const res: any = await deviceApi.product.exportModel({ productKey: currentProductKey });
+      const blob = res instanceof Blob
+        ? res
+        : new Blob([JSON.stringify(res || {}, null, 2)], { type: 'application/json' });
+      downloadBlob(blob, `TSL-${currentProductKey}-${getCurrentTime()}.json`);
+      message.success('物模型导出成功');
+    } catch {
+      message.error('物模型导出失败');
     }
   };
 
@@ -199,8 +264,15 @@ const ProductDetailPage: React.FC = () => {
             ) : (
               <Button type="primary" onClick={() => handleDeploy('deploy')}>发布</Button>
             )}
-            <Button icon={<UploadOutlined />}>导入模型</Button>
-            <Button icon={<DownloadOutlined />}>导出模型</Button>
+            <Upload
+              accept=".json,application/json"
+              showUploadList={false}
+              customRequest={handleImportModel}
+              disabled={importing}
+            >
+              <Button icon={<UploadOutlined />} loading={importing}>导入模型</Button>
+            </Upload>
+            <Button icon={<DownloadOutlined />} onClick={handleExportModel}>导出模型</Button>
           </Space>
         )}
       >

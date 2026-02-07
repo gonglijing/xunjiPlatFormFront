@@ -1,0 +1,52 @@
+.notice-config-container {
+  padding: 20px;
+}
+
+.gateway-card {
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.3s;
+}
+
+.gateway-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.gateway-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.gateway-left {
+  display: flex;
+  align-items: center;
+}
+
+.gateway-icon {
+  width: 80px;
+  height: 80px;
+  margin-right: 16px;
+}
+
+.gateway-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.gateway-title {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.gateway-desc {
+  color: #666;
+  font-size: 14px;
+}
+
+.gateway-right {
+  display: flex;
+  align-items: center;
+}

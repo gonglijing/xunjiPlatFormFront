@@ -1,5 +1,5 @@
 // 设备 API 接口
-import { get, post, put, del } from '../../utils/request';
+import { get, post, put, del, file, upload } from '../../utils/request';
 
 export default {
   common: {
@@ -58,6 +58,8 @@ export default {
     deploy: (productKey: string) => post('/product/deploy', { productKey }),
     undeploy: (productKey: string) => post('/product/undeploy', { productKey }),
     connectIntro: (productKey: string) => get('/product/connect_intro', { productKey }),
+    importModel: (data: FormData) => upload('/product/tsl/import', data),
+    exportModel: (params: object) => file('/product/tsl/export', params),
     propertySet: (data: object) => post('/product/property/set', data),
     getPropertyAll: (params: object) => get('/product/tsl/property/all', params),
     getDataType: (params?: object) => get('/product/tsl/data_type', params),

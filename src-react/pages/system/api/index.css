@@ -1,0 +1,6 @@
+.system-api-container,
+.system-dict-container,
+.system-task-container,
+.system-monitor-container {
+  padding: 20px;
+}

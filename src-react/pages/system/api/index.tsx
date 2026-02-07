@@ -1,38 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Space, Input, Tag, Modal, Form, Select, message, Popconfirm } from 'antd';
-import { PlusOutlined, SyncOutlined, EditOutlined, DeleteOutlined, FolderOutlined } from '@ant-design/icons';
+import { PlusOutlined, SyncOutlined, EditOutlined, DeleteOutlined, RefreshOutlined } from '@ant-design/icons';
 import systemApi from '../../../api/system';
 import './index.css';
 
-interface DictItem {
+interface ApiItem {
   id: number;
-  name: string;
-  type: string;
+  path: string;
+  method: string;
   description: string;
   status: number;
   createdAt: string;
 }
 
-const DictList: React.FC = () => {
+const ApiList: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<DictItem[]>([]);
+  const [data, setData] = useState<ApiItem[]>([]);
   const [total, setTotal] = useState(0);
   const [params, setParams] = useState({
     pageNum: 1,
     pageSize: 10,
-    name: '',
+    path: '',
   });
   const [editVisible, setEditVisible] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<DictItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<ApiItem | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res: any = await systemApi.system.dict.getList(params);
+      const res: any = await systemApi.system.api.getList(params);
       setData(res.list || []);
       setTotal(res.total || 0);
     } catch (error) {
-      message.error('获取字典列表失败');
+      message.error('获取API列表失败');
     } finally {
       setLoading(false);
     }
@@ -47,10 +47,20 @@ const DictList: React.FC = () => {
   };
 
   const handleReset = () => {
-    setParams({ pageNum: 1, pageSize: 10, name: '' });
+    setParams({ pageNum: 1, pageSize: 10, path: '' });
   };
 
-  const showEdit = (record?: DictItem) => {
+  const handleRefresh = async () => {
+    try {
+      await systemApi.system.api.refresh();
+      message.success('刷新成功');
+      fetchData();
+    } catch (error) {
+      message.error('刷新失败');
+    }
+  };
+
+  const showEdit = (record?: ApiItem) => {
     setSelectedItem(record || null);
     setEditVisible(true);
   };
@@ -58,10 +68,10 @@ const DictList: React.FC = () => {
   const handleDelete = async (id: number) => {
     Modal.confirm({
       title: '确认删除',
-      content: '确定要删除这个字典吗？',
+      content: '确定要删除这个API吗？',
       onOk: async () => {
         try {
-          await systemApi.system.dict.del(id);
+          await systemApi.system.api.del(id);
           message.success('删除成功');
           fetchData();
         } catch (error) {
@@ -71,10 +81,25 @@ const DictList: React.FC = () => {
     });
   };
 
+  const methodColors: Record<string, string> = {
+    GET: 'blue',
+    POST: 'green',
+    PUT: 'orange',
+    DELETE: 'red',
+  };
+
   const columns = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
-    { title: '字典名称', dataIndex: 'name', key: 'name' },
-    { title: '字典类型', dataIndex: 'type', key: 'type' },
+    { title: 'API路径', dataIndex: 'path', key: 'path', ellipsis: true },
+    {
+      title: '请求方法',
+      dataIndex: 'method',
+      key: 'method',
+      width: 100,
+      render: (method: string) => (
+        <Tag color={methodColors[method] || 'default'}>{method}</Tag>
+      ),
+    },
     { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
     {
       title: '状态',
@@ -91,16 +116,9 @@ const DictList: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 200,
-      render: (_: any, record: DictItem) => (
+      width: 140,
+      render: (_: any, record: ApiItem) => (
         <Space>
-          <Button
-            type="link"
-            icon={<FolderOutlined />}
-            onClick={() => message.info('字典数据管理功能开发中')}
-          >
-            数据
-          </Button>
           <Button type="link" icon={<EditOutlined />} onClick={() => showEdit(record)}>
             编辑
           </Button>
@@ -120,21 +138,26 @@ const DictList: React.FC = () => {
   ];
 
   return (
-    <div className="system-dict-container">
+    <div className="system-api-container">
       <Card
-        title="字典管理"
+        title="API管理"
         extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => showEdit()}>
-            新增
-          </Button>
+          <Space>
+            <Button icon={<RefreshOutlined />} onClick={handleRefresh}>
+              刷新
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => showEdit()}>
+              新增
+            </Button>
+          </Space>
         }
       >
         <Space style={{ marginBottom: 16 }} wrap>
           <Input
-            placeholder="字典名称"
+            placeholder="API路径"
             style={{ width: 200 }}
-            value={params.name}
-            onChange={(e) => setParams({ ...params, name: e.target.value })}
+            value={params.path}
+            onChange={(e) => setParams({ ...params, path: e.target.value })}
             onPressEnter={handleSearch}
           />
           <Button type="primary" icon={<SyncOutlined />} onClick={handleSearch}>
@@ -165,7 +188,7 @@ const DictList: React.FC = () => {
 
 interface EditModalProps {
   visible: boolean;
-  data: DictItem | null;
+  data: ApiItem | null;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -187,9 +210,9 @@ const EditModal: React.FC<EditModalProps> = ({ visible, data, onClose, onSuccess
       const values = await form.validateFields();
       setLoading(true);
       if (data?.id) {
-        await systemApi.system.dict.edit({ ...data, ...values });
+        await systemApi.system.api.edit({ ...data, ...values });
       } else {
-        await systemApi.system.dict.add(values);
+        await systemApi.system.api.add(values);
       }
       message.success(data?.id ? '编辑成功' : '新增成功');
       onSuccess();
@@ -202,7 +225,7 @@ const EditModal: React.FC<EditModalProps> = ({ visible, data, onClose, onSuccess
 
   return (
     <Modal
-      title={data?.id ? '编辑字典' : '新增字典'}
+      title={data?.id ? '编辑API' : '新增API'}
       open={visible}
       onCancel={onClose}
       onOk={handleSubmit}
@@ -210,18 +233,23 @@ const EditModal: React.FC<EditModalProps> = ({ visible, data, onClose, onSuccess
       width={500}
     >
       <Form form={form} labelWidth={80}>
-        <Form.Item name="name" label="字典名称" rules={[{ required: true }]}>
-          <Input placeholder="请输入字典名称" />
+        <Form.Item name="path" label="API路径" rules={[{ required: true }]}>
+          <Input placeholder="/api/v1/..." />
         </Form.Item>
-        <Form.Item name="type" label="字典类型" rules={[{ required: true }]}>
-          <Input placeholder="请输入字典类型" />
+        <Form.Item name="method" label="请求方法" rules={[{ required: true }]}>
+          <Select placeholder="请选择请求方法">
+            <Select.Option value="GET">GET</Select.Option>
+            <Select.Option value="POST">POST</Select.Option>
+            <Select.Option value="PUT">PUT</Select.Option>
+            <Select.Option value="DELETE">DELETE</Select.Option>
+          </Select>
         </Form.Item>
         <Form.Item name="description" label="描述">
-          <Input.TextArea rows={3} placeholder="请输入描述" />
+          <Input.TextArea rows={3} placeholder="请输入API描述" />
         </Form.Item>
       </Form>
     </Modal>
   );
 };
 
-export default DictList;
+export default ApiList;
