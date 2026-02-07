@@ -1,5 +1,5 @@
 // 告警 API 接口
-import { get, post, put, del } from '../utils/request';
+import { get, post, put, del } from '../../utils/request';
 
 export default {
   // 告警列表

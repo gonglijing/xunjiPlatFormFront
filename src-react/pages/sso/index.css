@@ -1,0 +1,13 @@
+.sso-page {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f6f8fb;
+}
+
+[data-theme='dark'] .sso-page {
+  background: #1a1a2e;
+}
+

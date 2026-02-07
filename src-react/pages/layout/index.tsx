@@ -4,13 +4,11 @@ import { Layout, Menu, Avatar, Dropdown, Badge, Button, Space, Switch } from 'an
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  HomeOutlined,
   UserOutlined,
   SettingOutlined,
   LogoutOutlined,
   BellOutlined,
   FullscreenOutlined,
-  QuestionCircleOutlined,
   MoonOutlined,
   SunOutlined,
 } from '@ant-design/icons';
@@ -18,10 +16,38 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
 import { toggleSidebar, setTheme } from '../../store/slice/appSlice';
 import { logout } from '../../store/slice/userSlice';
+import { clearMenus } from '../../store/slice/menuSlice';
 import MenuRender from './navMenu';
 import BreadcrumbNav from './component/breadcrumb';
 import TagsView from './component/tagsView';
 import './index.css';
+
+const requestFullscreenSafely = async () => {
+  const element = document.documentElement as HTMLElement & {
+    webkitRequestFullscreen?: () => Promise<void> | void;
+    msRequestFullscreen?: () => Promise<void> | void;
+  };
+
+  try {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+      return;
+    }
+    if (element.requestFullscreen) {
+      await element.requestFullscreen();
+      return;
+    }
+    if (element.webkitRequestFullscreen) {
+      await element.webkitRequestFullscreen();
+      return;
+    }
+    if (element.msRequestFullscreen) {
+      await element.msRequestFullscreen();
+    }
+  } catch {
+    // ignore
+  }
+};
 
 const { Header, Sider, Content } = Layout;
 
@@ -43,6 +69,7 @@ const MainLayout: React.FC = () => {
   };
 
   const handleLogout = () => {
+    dispatch(clearMenus());
     dispatch(logout());
     navigate('/login', { replace: true });
   };
@@ -103,7 +130,7 @@ const MainLayout: React.FC = () => {
             <img src="/logo.svg" alt="logo" className="logo-img-collapsed" />
           )}
         </div>
-        <MenuRender />
+        <MenuRender theme={theme} />
       </Sider>
 
       <Layout>
@@ -141,7 +168,7 @@ const MainLayout: React.FC = () => {
                 type="text"
                 icon={<FullscreenOutlined />}
                 className="header-icon"
-                onClick={() => document.documentElement.requestFullscreen()}
+                onClick={() => requestFullscreenSafely()}
               />
 
               <Dropdown menu={{ items: userMenuItems, onClick: handleMenuClick }} placement="bottomRight">

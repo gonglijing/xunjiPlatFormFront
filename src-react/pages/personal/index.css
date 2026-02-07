@@ -15,6 +15,18 @@
   overflow: hidden;
   cursor: pointer;
 }
+
+.avatar-wrapper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.avatar-wrapper.loading::after {
+  background: rgba(0, 0, 0, 0.25);
+}
 .avatar-image {
   width: 100%;
   height: 100%;

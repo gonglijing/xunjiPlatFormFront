@@ -1,7 +1,7 @@
 import React from 'react';
 import { Breadcrumb, Typography } from 'antd';
 import { HomeOutlined } from '@ant-design/icons';
-import { useLocation, useNavigate, useNavigate as useNavigateAlias } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import './breadcrumb.css';
 
 const { Text } = Typography;
@@ -9,14 +9,12 @@ const { Text } = Typography;
 // 面包屑名称映射
 const breadcrumbNameMap: Record<string, string> = {
   '/': '首页',
-  '/dashboard': '仪表盘',
+  '/home': '仪表盘',
   '/iot': 'IoT管理',
-  '/iot/alarm': '告警管理',
-  '/iot/device': '设备管理',
-  '/iot/network': '网络管理',
-  '/iot/product': '产品管理',
-  '/iot/property': '属性管理',
-  '/iot/certificate': '证书管理',
+  '/alarm': '告警管理',
+  '/device': '设备管理',
+  '/network': '网络管理',
+  '/product': '产品管理',
   '/system': '系统管理',
   '/system/user': '用户管理',
   '/system/role': '角色管理',

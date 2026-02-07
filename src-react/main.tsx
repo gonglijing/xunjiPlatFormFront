@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { store } from './store';
+import { setTheme } from './store/slice/appSlice';
 import App from './App';
 import './styles/index.css';
 import sysApi from './api/system';
@@ -26,6 +27,15 @@ const initSystemConfig = () => {
 
 // 初始化配置
 initSystemConfig();
+
+const initTheme = () => {
+  const savedTheme = (localStorage.getItem('xunji_theme') as 'light' | 'dark') || 'light';
+  store.dispatch(setTheme(savedTheme));
+  document.documentElement.setAttribute('data-theme', savedTheme === 'dark' ? 'dark' : '');
+  document.body.className = savedTheme === 'dark' ? 'dark-theme' : '';
+};
+
+initTheme();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   // <React.StrictMode> // 移除 StrictMode 以避免 echarts-for-react 卸载错误

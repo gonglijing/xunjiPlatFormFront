@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Tabs, Dropdown, Tooltip } from 'antd';
+import { Tabs, Tooltip } from 'antd';
 import {
   CloseOutlined,
   ReloadOutlined,
@@ -25,17 +25,15 @@ const TagsView: React.FC = () => {
   const [items, setItems] = useState<TagView[]>([]);
 
   // 标签名称映射
-  const tagNameMap: Record<string, string> = {
-    '/': '首页',
-    '/dashboard': '仪表盘',
-    '/iot': 'IoT管理',
-    '/iot/alarm': '告警管理',
-    '/iot/device': '设备管理',
-    '/iot/network': '网络管理',
-    '/iot/product': '产品管理',
-    '/iot/property': '属性管理',
-    '/iot/certificate': '证书管理',
-    '/system': '系统管理',
+const tagNameMap: Record<string, string> = {
+  '/': '首页',
+  '/home': '仪表盘',
+  '/iot': 'IoT管理',
+  '/alarm': '告警管理',
+  '/device': '设备管理',
+  '/network': '网络管理',
+  '/product': '产品管理',
+  '/system': '系统管理',
     '/system/user': '用户管理',
     '/system/role': '角色管理',
     '/system/menu': '菜单管理',
@@ -49,14 +47,14 @@ const TagsView: React.FC = () => {
   const initTags = useCallback(() => {
     const tags: TagView[] = [
       {
-        path: '/',
-        title: '首页',
-        fullPath: '/',
+        path: '/home',
+        title: '仪表盘',
+        fullPath: '/home',
         affix: true,
       },
     ];
     setItems(tags);
-    setActiveKey('/');
+    setActiveKey('/home');
   }, []);
 
   // 添加标签
@@ -159,10 +157,10 @@ const TagsView: React.FC = () => {
 
   // 移除其他标签
   const closeOther = () => {
-    const affixTag = items.find((item) => item.path === '/');
+    const affixTag = items.find((item) => item.path === '/home');
     setItems(affixTag ? [affixTag] : []);
-    setActiveKey('/');
-    navigate('/');
+    setActiveKey('/home');
+    navigate('/home');
   };
 
   // 关闭左侧标签

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Tag, Space, Input, Select, Modal, Form, message, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, SyncOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import productApi from '../../../api/product';
+import deviceApi from '../../../api/device';
 import './index.css';
 const { Search } = Input;
 const { Option } = Select;
@@ -21,9 +23,13 @@ const ProductList: React.FC = () => {
   const [pageNum, setPageNum] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchKey, setSearchKey] = useState('');
+  const [deviceType, setDeviceType] = useState<string>('');
+  const [status, setStatus] = useState<number | undefined>(undefined);
+  const [categoryOptions, setCategoryOptions] = useState<any[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ProductItem | null>(null);
   const [form] = Form.useForm();
+  const navigate = useNavigate();
   
   const fetchData = async () => {
     setLoading(true);
@@ -32,6 +38,8 @@ const ProductList: React.FC = () => {
         pageNum,
         pageSize,
         keyWord: searchKey,
+        deviceType,
+        status,
       });
       if (res.code === 0 || res.code === 200) {
         setData(res.data?.list || []);
@@ -46,7 +54,21 @@ const ProductList: React.FC = () => {
   
   useEffect(() => {
     fetchData();
-  }, [pageNum, pageSize, searchKey]);
+  }, [pageNum, pageSize, searchKey, deviceType, status]);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res: any = await deviceApi.category.getList({});
+        const payload = res?.data || res;
+        const list = payload?.category || payload?.list || payload || [];
+        setCategoryOptions(Array.isArray(list) ? list : []);
+      } catch {
+        setCategoryOptions([]);
+      }
+    };
+    fetchCategories();
+  }, []);
   
   const handleSearch = (value: string) => {
     setSearchKey(value);
@@ -146,6 +168,9 @@ const ProductList: React.FC = () => {
       key: 'action',
       render: (_: any, record: ProductItem) => (
         <Space size="middle">
+          <Button type="link" onClick={() => navigate(`/product/detail/${record.productKey || record.id}`)}>
+            详情
+          </Button>
           <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
             编辑
           </Button>
@@ -166,6 +191,11 @@ const ProductList: React.FC = () => {
         extra={
           <Space>
             <Search placeholder="搜索产品名称" onSearch={handleSearch} style={{ width: 200 }} allowClear />
+            <Input placeholder="设备类型" value={deviceType} onChange={(e) => setDeviceType(e.target.value)} style={{ width: 120 }} />
+            <Select placeholder="发布状态" value={status} allowClear onChange={setStatus} style={{ width: 120 }}>
+              <Option value={1}>已发布</Option>
+              <Option value={0}>未发布</Option>
+            </Select>
             <Button icon={<SyncOutlined />} onClick={fetchData}>刷新</Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>创建产品</Button>
           </Space>
@@ -204,6 +234,16 @@ const ProductList: React.FC = () => {
           </Form.Item>
           <Form.Item name="productKey" label="产品密钥" rules={[{ required: true, message: '请输入产品密钥' }]}>
             <Input placeholder="请输入产品密钥" />
+          </Form.Item>
+          <Form.Item name="categoryId" label="产品分类">
+            <Select allowClear placeholder="请选择分类">
+              {categoryOptions.map((item) => (
+                <Option key={item.id} value={item.id}>{item.name}</Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item name="deviceType" label="设备类型">
+            <Input placeholder="请输入设备类型" />
           </Form.Item>
         </Form>
       </Modal>

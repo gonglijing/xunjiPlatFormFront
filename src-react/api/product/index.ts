@@ -1,5 +1,5 @@
 // 产品 API 接口
-import { get, post, put, del } from '../utils/request';
+import { get, post, put, del } from '../../utils/request';
 
 export default {
   // 产品列表

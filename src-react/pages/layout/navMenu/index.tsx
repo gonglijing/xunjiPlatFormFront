@@ -15,7 +15,17 @@ interface MenuItem {
   children?: MenuItem[];
 }
 
-const MenuRender: React.FC = () => {
+interface MenuRenderProps {
+  theme?: 'light' | 'dark';
+}
+
+const normalizePath = (path?: string) => {
+  if (!path) return '/';
+  if (path.startsWith('/')) return path;
+  return `/${path}`;
+};
+
+const MenuRender: React.FC<MenuRenderProps> = ({ theme = 'dark' }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
@@ -25,14 +35,17 @@ const MenuRender: React.FC = () => {
   
   useEffect(() => {
     const fetchMenus = async () => {
-      if (menus.length > 0) return;
-      
+      if (menus.length > 0) {
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
-        const res = await sysApi.menu.getList({});
-        if (res.code === 0 || res.code === 200) {
-          dispatch(setMenus(res.data || []));
-        }
+        const res: any = await sysApi.login.currentUser();
+        const currentRes = res?.data || res;
+        const menuTree = currentRes?.Data || currentRes?.data || [];
+        dispatch(setMenus(Array.isArray(menuTree) ? menuTree : []));
       } catch (error) {
         console.error('获取菜单失败:', error);
       } finally {
@@ -48,13 +61,21 @@ const MenuRender: React.FC = () => {
     if (!Array.isArray(menuList)) {
       return [];
     }
-    return menuList.map((item) => ({
-      key: item.path || item.id?.toString(),
-      label: item.title || item.menuName,
-      icon: item.icon ? <span className={`iconfont ${item.icon}`} /> : undefined,
-      path: item.path,
-      children: item.children ? convertToMenuItems(item.children) : undefined,
-    }));
+
+    return menuList
+      .filter((item) => Number(item?.menuType) !== 2 && Number(item?.isHide) !== 1)
+      .map((item) => {
+        const path = normalizePath(item.path || item.routePath || item.url || item.name);
+        const children = item.children ? convertToMenuItems(item.children) : undefined;
+        return {
+          key: path,
+          label: item.title || item.menuName || item.name,
+          icon: item.icon ? <span className={`iconfont ${item.icon}`} /> : undefined,
+          path,
+          children: children && children.length > 0 ? children : undefined,
+        };
+      })
+      .filter((item) => Boolean(item.label));
   };
   
   const handleMenuClick = (e: { key: string }) => {
@@ -71,13 +92,14 @@ const MenuRender: React.FC = () => {
     const findParent = (items: any[], parentPath = '') => {
       if (!Array.isArray(items)) return;
       for (const item of items) {
+        const itemPath = normalizePath(item.path || item.routePath || item.url || item.name);
         if (item.children) {
-          const childPath = item.path || parentPath;
+          const childPath = itemPath || parentPath;
           const found = item.children.some((child: any) => 
-            path.startsWith(child.path || child.id?.toString())
+            path.startsWith(normalizePath(child.path || child.routePath || child.url || child.name))
           );
           if (found) {
-            keys.push(item.path || item.id?.toString());
+            keys.push(itemPath);
             findParent(item.children, childPath);
           }
         }
@@ -103,7 +125,7 @@ const MenuRender: React.FC = () => {
   return (
     <Menu
       mode="inline"
-      theme="dark"
+      theme={theme}
       selectedKeys={[location.pathname]}
       defaultOpenKeys={getOpenKeys()}
       items={menuItems}

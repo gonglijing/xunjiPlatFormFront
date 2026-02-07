@@ -14,7 +14,7 @@ interface UserState {
 }
 
 const initialState: UserState = {
-  token: localStorage.getItem('xunji_token'),
+  token: localStorage.getItem('xunji_token') || localStorage.getItem('token') || sessionStorage.getItem('token'),
   userInfo: JSON.parse(localStorage.getItem('xunji_user_info') || 'null'),
   permissions: JSON.parse(localStorage.getItem('xunji_permissions') || '[]'),
 };
@@ -26,6 +26,8 @@ const userSlice = createSlice({
     setToken(state, action: PayloadAction<string>) {
       state.token = action.payload;
       localStorage.setItem('xunji_token', action.payload);
+      localStorage.setItem('token', action.payload);
+      sessionStorage.setItem('token', action.payload);
     },
     setUserInfo(state, action: PayloadAction<UserState['userInfo']>) {
       state.userInfo = action.payload;
@@ -44,8 +46,11 @@ const userSlice = createSlice({
       state.userInfo = null;
       state.permissions = [];
       localStorage.removeItem('xunji_token');
+      localStorage.removeItem('token');
       localStorage.removeItem('xunji_user_info');
       localStorage.removeItem('xunji_permissions');
+      localStorage.removeItem('userId');
+      sessionStorage.removeItem('token');
     },
   },
 });

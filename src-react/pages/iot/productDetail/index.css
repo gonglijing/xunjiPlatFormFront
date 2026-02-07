@@ -1,0 +1,13 @@
+.product-detail-page {
+  min-height: 100%;
+}
+
+.product-detail-tabs {
+  margin-top: 16px;
+}
+
+.model-table-toolbar {
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: flex-end;
+}

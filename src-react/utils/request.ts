@@ -1,7 +1,31 @@
 // API 请求封装
 import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 import { message } from 'antd';
-import { useNavigate } from 'react-router-dom';
+
+function normalizeResponseData(payload: any) {
+  if (!payload || typeof payload !== 'object') {
+    return payload;
+  }
+
+  if (payload.Total !== undefined) {
+    return {
+      ...payload,
+      list: payload.Data || [],
+      total: payload.Total || 0,
+      page: payload.currentPage,
+    };
+  }
+
+  if (payload.Info !== undefined && payload.Data !== undefined) {
+    return payload;
+  }
+
+  if (payload.Data !== undefined) {
+    return payload.Data;
+  }
+
+  return payload;
+}
 
 // 创建 axios 实例
 const service = axios.create({
@@ -12,7 +36,7 @@ const service = axios.create({
 // 请求拦截器
 service.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('xunji_token');
+    const token = localStorage.getItem('xunji_token') || localStorage.getItem('token') || sessionStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -27,11 +51,21 @@ service.interceptors.request.use(
 service.interceptors.response.use(
   (response: AxiosResponse) => {
     const res = response.data;
-    if (res.code === 200 || res.code === 0) {
+
+    if (res?.code === undefined) {
       return res;
     }
-    message.error(res.msg || '请求失败');
-    return Promise.reject(new Error(res.msg || '请求失败'));
+
+    if (res.code === 200 || res.code === 0) {
+      const normalizedData = normalizeResponseData(res.data);
+      return {
+        ...res,
+        ...(normalizedData && typeof normalizedData === 'object' ? normalizedData : {}),
+        data: normalizedData,
+      };
+    }
+    message.error(res.msg || res.message || '请求失败');
+    return Promise.reject(new Error(res.msg || res.message || '请求失败'));
   },
   (error) => {
     if (error.response) {
@@ -39,7 +73,9 @@ service.interceptors.response.use(
       switch (status) {
         case 401:
           localStorage.removeItem('xunji_token');
+          localStorage.removeItem('token');
           localStorage.removeItem('xunji_user_info');
+          sessionStorage.removeItem('token');
           window.location.href = '/login';
           break;
         case 403:

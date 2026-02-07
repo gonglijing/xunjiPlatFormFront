@@ -189,6 +189,10 @@ const DeviceList: React.FC = () => {
               style={{ width: 200 }}
               allowClear
             />
+            <Button type="default" onClick={() => navigate('/device/category')}>设备分类</Button>
+            <Button type="default" onClick={() => navigate('/device/instance')}>设备实例</Button>
+            <Button type="default" onClick={() => navigate('/device/channel')}>设备通道</Button>
+            <Button type="default" onClick={() => navigate('/device/template')}>设备模板</Button>
             <Select
               placeholder="设备状态"
               style={{ width: 120 }}

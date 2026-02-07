@@ -11,6 +11,8 @@ export default {
     logout: () => post('/loginOut'),
     currentUser: () => get('/system/user/currentUser'),
     captcha: () => get('/captcha'),
+    ssoList: () => get('/system/sys_oauth/list_front'),
+    oauth: (data: object) => post('/oauth', data),
   },
   
   // API 管理
@@ -48,6 +50,8 @@ export default {
     detail: (id: number) => get('/system/user/getInfoById', { id }),
     add: (data: object) => post('/system/user/add', data),
     edit: (data: object) => put('/system/user/edit', data),
+    editUserInfo: (data: object) => put('/system/user/editUserInfo', data),
+    setAvatar: (id: number, avatar: string) => put('/system/user/editAvatar', { id, avatar }),
     del: (id: number) => del('/system/user/delInfoById', { id }),
     setStatus: (id: number, status: number) => put('/system/user/editStatus', { id, status }),
   },
@@ -126,4 +130,6 @@ export default {
     start: (id: number) => put('/system/job/start', { id }),
     stop: (id: number) => put('/system/job/stop', { id }),
   },
+
+  getInfoByKey: (ConfigKey: string) => get('/common/config/getInfoByKey', { ConfigKey }),
 };
