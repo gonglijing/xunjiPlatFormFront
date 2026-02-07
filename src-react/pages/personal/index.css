@@ -1,0 +1,40 @@
+.personal-container {
+  background: #fff;
+  border-radius: 4px;
+}
+.avatar-section {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
+}
+.avatar-wrapper {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+}
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.avatar-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.avatar-wrapper:hover .avatar-overlay {
+  opacity: 1;
+}

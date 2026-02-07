@@ -1,0 +1,23 @@
+.menu-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+}
+
+.sidebar-menu {
+  border-right: none !important;
+}
+
+.sidebar-menu .ant-menu-item {
+  margin: 4px 8px !important;
+  border-radius: 4px !important;
+}
+
+.sidebar-menu .ant-menu-item-selected {
+  background: rgba(64, 158, 255, 0.2) !important;
+}
+
+.sidebar-menu .ant-menu-item:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}

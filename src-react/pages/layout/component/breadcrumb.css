@@ -1,0 +1,17 @@
+.breadcrumb-nav {
+  display: flex;
+  align-items: center;
+}
+
+.breadcrumb-nav .ant-breadcrumb {
+  font-size: 14px;
+}
+
+.breadcrumb-current {
+  color: #1890ff;
+  font-weight: 500;
+}
+
+.breadcrumb-nav a:hover {
+  color: #1890ff;
+}

@@ -1,0 +1,6 @@
+.dashboard-container {
+  padding: 0;
+}
+.dashboard-container .ant-card {
+  margin-bottom: 16px;
+}
