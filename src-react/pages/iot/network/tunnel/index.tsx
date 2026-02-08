@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Space, Input, Tag, Modal, message, Switch, Popconfirm } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Card, Table, Button, Space, Input, Tag, message, Switch, Popconfirm } from 'antd';
+import type { TableColumnsType } from 'antd';
 import { PlusOutlined, SyncOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import networkApi from '../../../../api/network';
@@ -14,13 +15,34 @@ interface TunnelItem {
   createdAt: string;
 }
 
+interface QueryParams {
+  pageNum: number;
+  pageSize: number;
+}
+
+type AnyRecord = Record<string, unknown>;
+
+const asRecord = (value: unknown): AnyRecord => {
+  if (typeof value === 'object' && value !== null) {
+    return value as AnyRecord;
+  }
+  return {};
+};
+
+const toList = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+
+const toNumber = (value: unknown, fallback = 0): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
 const TunnelList: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<TunnelItem[]>([]);
   const [total, setTotal] = useState(0);
   const [key, setKey] = useState('');
-  const [params, setParams] = useState({
+  const [params, setParams] = useState<QueryParams>({
     pageNum: 1,
     pageSize: 10,
   });
@@ -28,13 +50,19 @@ const TunnelList: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res: any = await networkApi.tunnel.getList({
+      const res = await networkApi.tunnel.getList({
         ...params,
         keyWord: key,
       });
-      setData(res.list || []);
-      setTotal(res.total || 0);
-    } catch (error) {
+      const resRecord = asRecord(res);
+      const rawPayload = resRecord.data ?? res;
+      const payload = asRecord(rawPayload);
+      const list = resRecord.list ?? payload.list ?? payload.Data ?? rawPayload;
+      const count = resRecord.total ?? payload.total ?? payload.Total ?? 0;
+
+      setData(toList<TunnelItem>(list));
+      setTotal(toNumber(count));
+    } catch {
       message.error('获取通道列表失败');
     } finally {
       setLoading(false);
@@ -72,7 +100,7 @@ const TunnelList: React.FC = () => {
       await networkApi.tunnel.status({ id: record.id, status: newStatus });
       message.success(newStatus ? '已启用' : '已禁用');
       fetchData();
-    } catch (error) {
+    } catch {
       message.error('状态修改失败');
     }
   };
@@ -82,12 +110,12 @@ const TunnelList: React.FC = () => {
       await networkApi.tunnel.del({ ids: [id] });
       message.success('删除成功');
       fetchData();
-    } catch (error) {
+    } catch {
       message.error('删除失败');
     }
   };
 
-  const columns = [
+  const columns: TableColumnsType<TunnelItem> = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
     { title: '名称', dataIndex: 'name', key: 'name' },
     { title: '服务器', dataIndex: 'serverName', key: 'serverName' },
@@ -105,7 +133,7 @@ const TunnelList: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 200,
-      render: (_: any, record: TunnelItem) => (
+      render: (_: unknown, record: TunnelItem) => (
         <Space>
           <Button type="link" icon={<EyeOutlined />} onClick={() => toDetail(record.id)}>
             详情
@@ -138,11 +166,11 @@ const TunnelList: React.FC = () => {
     <div className="network-tunnel-container">
       <Card
         title="网络通道管理"
-        extra={
+        extra={(
           <Button type="primary" icon={<PlusOutlined />} onClick={toCreate}>
             新建
           </Button>
-        }
+        )}
       >
         <Space style={{ marginBottom: 16 }} wrap>
           <Input

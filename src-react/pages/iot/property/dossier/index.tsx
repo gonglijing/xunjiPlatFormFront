@@ -32,7 +32,8 @@ const DossierList: React.FC = () => {
   const fetchTreeData = async () => {
     try {
       const res: any = await deviceApi.dev_asset.getList({});
-      setTreeData(res.Data || []);
+      const list = res.Data || res.list || res.data || [];
+      setTreeData(Array.isArray(list) ? list : []);
     } catch (error) {
       console.error('获取分类树失败');
     }
@@ -42,8 +43,9 @@ const DossierList: React.FC = () => {
     setLoading(true);
     try {
       const res: any = await deviceApi.dev_asset.getList(params);
-      setTableData(res.Data || []);
-      setTotal(res.total || 0);
+      const list = res.Data || res.list || res.data || [];
+      setTableData(Array.isArray(list) ? list : []);
+      setTotal(res.total || res.Total || 0);
     } catch (error) {
       message.error('获取档案列表失败');
     } finally {
@@ -86,7 +88,13 @@ const DossierList: React.FC = () => {
       title: '确认删除',
       content: `确定要删除档案 "${record.deviceName}" 吗?`,
       onOk: async () => {
-        message.info('删除功能开发中');
+        try {
+          await deviceApi.dev_asset.delete({ ids: record.id });
+          message.success('删除成功');
+          fetchTableData();
+        } catch (error) {
+          message.error('删除失败');
+        }
       },
     });
   };

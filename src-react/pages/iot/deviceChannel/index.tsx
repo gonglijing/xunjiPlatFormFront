@@ -13,6 +13,22 @@ interface ChannelItem {
   createdAt?: string;
 }
 
+type ChannelRecord = Record<string, unknown>;
+
+const asRecord = (value: unknown): ChannelRecord => {
+  if (typeof value === 'object' && value !== null) {
+    return value as ChannelRecord;
+  }
+  return {};
+};
+
+const toList = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+
+const toNumber = (value: unknown, fallback = 0): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
 const DeviceChannelPage: React.FC = () => {
   const [queryForm] = Form.useForm();
   const [editForm] = Form.useForm();
@@ -29,16 +45,18 @@ const DeviceChannelPage: React.FC = () => {
     setLoading(true);
     try {
       const query = queryForm.getFieldsValue();
-      const res: any = await deviceApi.channel.getList({
+      const res = await deviceApi.channel.getList({
         page: pageNum,
         size: pageSize,
         ...query,
       });
-      const payload = res?.data || res;
-      const list = payload?.list || payload?.Data || payload || [];
-      const count = payload?.total || payload?.Total || 0;
-      setRows(Array.isArray(list) ? list : []);
-      setTotal(Number(count) || 0);
+      const rawPayload = asRecord(res).data ?? res;
+      const payload = asRecord(rawPayload);
+      const list = payload.list ?? payload.Data ?? rawPayload;
+      const count = payload.total ?? payload.Total ?? 0;
+
+      setRows(toList<ChannelItem>(list));
+      setTotal(toNumber(count));
     } catch {
       message.error('获取通道列表失败');
     } finally {
@@ -141,7 +159,7 @@ const DeviceChannelPage: React.FC = () => {
               title: '操作',
               key: 'action',
               width: 180,
-              render: (_: any, row: ChannelItem) => (
+              render: (_: unknown, row: ChannelItem) => (
                 <Space>
                   <Button type="link" icon={<EditOutlined />} onClick={() => handleOpenEdit(row)}>编辑</Button>
                   <Popconfirm title="确认删除该通道？" onConfirm={() => handleDelete(row)}>
@@ -181,4 +199,3 @@ const DeviceChannelPage: React.FC = () => {
 };
 
 export default DeviceChannelPage;
-

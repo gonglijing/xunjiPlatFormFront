@@ -13,6 +13,22 @@ interface TemplateItem {
   remarks?: string;
 }
 
+type AnyRecord = Record<string, unknown>;
+
+const asRecord = (value: unknown): AnyRecord => {
+  if (typeof value === 'object' && value !== null) {
+    return value as AnyRecord;
+  }
+  return {};
+};
+
+const toList = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+
+const toNumber = (value: unknown, fallback = 0): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
 const DeviceTemplatePage: React.FC = () => {
   const [queryForm] = Form.useForm();
   const [editForm] = Form.useForm();
@@ -29,12 +45,14 @@ const DeviceTemplatePage: React.FC = () => {
     setLoading(true);
     try {
       const query = queryForm.getFieldsValue();
-      const res: any = await modbusApi.template.getList({ page, size, ...query });
-      const payload = res?.data || res;
-      const list = payload?.list || payload?.Data || payload || [];
-      const count = payload?.total || payload?.Total || 0;
-      setRows(Array.isArray(list) ? list : []);
-      setTotal(Number(count) || 0);
+      const res = await modbusApi.template.getList({ page, size, ...query });
+      const rawPayload = asRecord(res).data ?? res;
+      const payload = asRecord(rawPayload);
+      const list = payload.list ?? payload.Data ?? rawPayload;
+      const count = payload.total ?? payload.Total ?? 0;
+
+      setRows(toList<TemplateItem>(list));
+      setTotal(toNumber(count));
     } catch {
       message.error('获取模板列表失败');
     } finally {
@@ -143,7 +161,7 @@ const DeviceTemplatePage: React.FC = () => {
               title: '操作',
               key: 'action',
               width: 280,
-              render: (_: any, row: TemplateItem) => (
+              render: (_: unknown, row: TemplateItem) => (
                 <Space>
                   <Button type="link" onClick={() => handleExport(row)}>导出</Button>
                   <Button type="link" icon={<EditOutlined />} onClick={() => handleOpenEdit(row)}>详情</Button>
@@ -187,4 +205,3 @@ const DeviceTemplatePage: React.FC = () => {
 };
 
 export default DeviceTemplatePage;
-

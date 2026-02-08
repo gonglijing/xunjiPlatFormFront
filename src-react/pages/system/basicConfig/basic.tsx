@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Form, Input, Button, message } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
-import sysApi from '../../../../api/system';
+import sysApi from '../../../api/system';
 import './index.css';
 
 interface ConfigItem {
@@ -39,7 +39,8 @@ const BasicConfig: React.FC = () => {
         siteName: pick(['系统名称'], ['sys.name']),
         icp: pick(['系统版权'], ['sys.copyright']),
         logo: pick(['系统LOGO'], ['sys.logo']),
-        cdnUrl: pick(['登录展示图'], ['sys.login.background']),
+        miniLogo: pick(['系统LOGO（小图标）'], ['sys.logo.mini']),
+        loginImage: pick(['登录展示图'], ['sys.login.background']),
       });
     } catch (error) {
       message.error('加载基础配置失败');
@@ -57,30 +58,52 @@ const BasicConfig: React.FC = () => {
       const values = await form.validateFields();
       setLoading(true);
 
-      const updateMap: Record<string, string> = {
-        系统名称: values.siteName,
-        系统版权: values.icp,
-        系统LOGO: values.logo,
-        登录展示图: values.cdnUrl,
+      const updateByName: Record<string, string> = {
+        '系统名称': values.siteName,
+        '系统版权': values.icp,
+        '系统LOGO': values.logo,
+        '系统LOGO（小图标）': values.miniLogo,
+        '登录展示图': values.loginImage,
       };
 
-      const nextConfig = configItems.length
+      const updateByKey: Record<string, string> = {
+        'sys.name': values.siteName,
+        'sys.copyright': values.icp,
+        'sys.logo': values.logo,
+        'sys.logo.mini': values.miniLogo,
+        'sys.login.background': values.loginImage,
+      };
+
+      const nextConfig: ConfigItem[] = configItems.length
         ? configItems.map((item) => {
-          if (updateMap[item.configName] !== undefined) {
-            return { ...item, configValue: updateMap[item.configName] };
-          }
-          return item;
-        })
-        : [
-            { configName: '系统名称', configValue: values.siteName },
-            { configName: '系统版权', configValue: values.icp },
-            { configName: '系统LOGO', configValue: values.logo },
-            { configName: '登录展示图', configValue: values.cdnUrl },
-          ];
+            const byName = updateByName[item.configName];
+            const byKey = item.configKey ? updateByKey[item.configKey] : undefined;
+            const nextValue = byName !== undefined ? byName : byKey;
+            if (nextValue !== undefined) {
+              return { ...item, configValue: nextValue };
+            }
+            return item;
+          })
+        : [];
+
+      const fallbackItems: ConfigItem[] = [
+        { configKey: 'sys.name', configName: '系统名称', configValue: values.siteName },
+        { configKey: 'sys.copyright', configName: '系统版权', configValue: values.icp },
+        { configKey: 'sys.logo', configName: '系统LOGO', configValue: values.logo },
+        { configKey: 'sys.logo.mini', configName: '系统LOGO（小图标）', configValue: values.miniLogo },
+        { configKey: 'sys.login.background', configName: '登录展示图', configValue: values.loginImage },
+      ];
+
+      fallbackItems.forEach((item) => {
+        const exists = nextConfig.some((entry) => entry.configName === item.configName || entry.configKey === item.configKey);
+        if (!exists) {
+          nextConfig.push(item);
+        }
+      });
 
       await sysApi.basicConfig.setDetails({ ConfigInfo: nextConfig });
       message.success('保存成功');
-      setConfigItems(nextConfig as ConfigItem[]);
+      setConfigItems(nextConfig);
     } catch (error: any) {
       if (!error?.errorFields) {
         message.error('保存失败');
@@ -94,16 +117,19 @@ const BasicConfig: React.FC = () => {
     <div className="basic-config-content">
       <h3>基础配置</h3>
       <Form form={form} layout="vertical">
-        <Form.Item name="siteName" label="站点名称" rules={[{ required: true, message: '请输入站点名称' }]}>
-          <Input placeholder="请输入站点名称" />
+        <Form.Item name="siteName" label="系统名称" rules={[{ required: true, message: '请输入系统名称' }]}>
+          <Input placeholder="请输入系统名称" />
         </Form.Item>
-        <Form.Item name="icp" label="ICP备案号" rules={[{ required: true, message: '请输入ICP备案号' }]}>
-          <Input placeholder="请输入ICP备案号" />
+        <Form.Item name="icp" label="系统版权" rules={[{ required: true, message: '请输入系统版权' }]}>
+          <Input placeholder="请输入系统版权" />
         </Form.Item>
-        <Form.Item name="logo" label="站点Logo" rules={[{ required: true, message: '请输入站点Logo地址' }]}>
-          <Input placeholder="请输入站点Logo地址" />
+        <Form.Item name="logo" label="系统LOGO" rules={[{ required: true, message: '请输入系统LOGO地址' }]}>
+          <Input placeholder="请输入系统LOGO地址" />
         </Form.Item>
-        <Form.Item name="cdnUrl" label="登录展示图">
+        <Form.Item name="miniLogo" label="系统LOGO（小图标）" rules={[{ required: true, message: '请输入小图标地址' }]}>
+          <Input placeholder="请输入系统LOGO（小图标）地址" />
+        </Form.Item>
+        <Form.Item name="loginImage" label="登录展示图" rules={[{ required: true, message: '请输入登录展示图地址' }]}>
           <Input placeholder="请输入登录展示图地址" />
         </Form.Item>
         <Form.Item>

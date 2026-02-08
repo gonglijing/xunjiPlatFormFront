@@ -1,15 +1,15 @@
 import vue from '@vitejs/plugin-vue';
 import react from '@vitejs/plugin-react';
 import viteCompression from 'vite-plugin-compression'
-import { resolve, join } from 'path';
+import { join } from 'path';
 import { defineConfig, loadEnv, ConfigEnv } from 'vite';
 
 const srcDir = join(__dirname, 'src');
 const srcReactDir = join(__dirname, 'src-react');
 
-const framework = process.env.VITE_APP_FRAMEWORK || 'vue';
+const buildTimestamp = Date.now();
 
-const entryFile = framework === 'vue' ? 'main-vue.ts' : 'react/main.tsx';
+const framework = process.env.VITE_APP_FRAMEWORK || 'vue';
 
 const alias: Record<string, string> = {
 	'@': srcDir,
@@ -30,6 +30,9 @@ const frameworkManualChunks = framework === 'vue'
 	}
 	: {
 		react: ['react', 'react-dom', 'react-router-dom'],
+		redux: ['@reduxjs/toolkit', 'react-redux'],
+		antd: ['antd', '@ant-design/icons'],
+		echarts: ['echarts', 'echarts-for-react', '@antv/g2plot'],
 	};
 
 const viteConfig = defineConfig((mode: ConfigEnv) => {
@@ -76,11 +79,12 @@ const viteConfig = defineConfig((mode: ConfigEnv) => {
 			outDir: 'dist',
 			sourcemap: false,
 			chunkSizeWarningLimit: 1500,
+			target: 'es2018',
 			rollupOptions: {
 				output: {
-					entryFileNames: `assets/[name].${new Date().getTime()}.js`,
-					chunkFileNames: `assets/[name].${new Date().getTime()}.js`,
-					assetFileNames: `assets/[name].${new Date().getTime()}.[ext]`,
+					entryFileNames: `assets/[name].${buildTimestamp}.js`,
+					chunkFileNames: `assets/[name].${buildTimestamp}.js`,
+					assetFileNames: `assets/[name].${buildTimestamp}.[ext]`,
 					compact: true,
 					manualChunks: frameworkManualChunks,
 				},

@@ -5,13 +5,24 @@ import deviceApi from '../../../api/device';
 import './index.css';
 
 interface CategoryItem {
-  id: number;
-  parentId: number;
-  name: string;
+  id?: number;
+  parentId?: number;
+  name?: string;
   desc?: string;
   sort?: number;
   children?: CategoryItem[];
 }
+
+type AnyRecord = Record<string, unknown>;
+
+const asRecord = (value: unknown): AnyRecord => {
+  if (typeof value === 'object' && value !== null) {
+    return value as AnyRecord;
+  }
+  return {};
+};
+
+const toList = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
 
 const DeviceCategoryPage: React.FC = () => {
   const [queryForm] = Form.useForm();
@@ -25,10 +36,12 @@ const DeviceCategoryPage: React.FC = () => {
     setLoading(true);
     try {
       const params = queryForm.getFieldsValue();
-      const res: any = await deviceApi.category.getList(params);
-      const payload = res?.data || res;
-      const list = payload?.category || payload?.list || payload || [];
-      setTableData(Array.isArray(list) ? list : []);
+      const res = await deviceApi.category.getList(params);
+      const rawPayload = asRecord(res).data ?? res;
+      const payload = asRecord(rawPayload);
+      const list = payload.category ?? payload.list ?? rawPayload;
+
+      setTableData(toList<CategoryItem>(list));
     } catch {
       message.error('获取分类列表失败');
     } finally {
@@ -54,6 +67,10 @@ const DeviceCategoryPage: React.FC = () => {
   };
 
   const handleDelete = async (row: CategoryItem) => {
+    if (!row.id) {
+      message.error('缺少分类 ID，无法删除');
+      return;
+    }
     try {
       await deviceApi.category.del(row.id);
       message.success('删除成功');
@@ -111,11 +128,11 @@ const DeviceCategoryPage: React.FC = () => {
               title: '操作',
               key: 'action',
               width: 220,
-              render: (_: any, row: CategoryItem) => (
+              render: (_: unknown, row: CategoryItem) => (
                 <Space>
                   <Button type="link" onClick={() => handleOpenAdd(row.id)}>新增</Button>
                   <Button type="link" icon={<EditOutlined />} onClick={() => handleOpenEdit(row)}>编辑</Button>
-                  <Popconfirm title={`确认删除分类：${row.name}？`} onConfirm={() => handleDelete(row)}>
+                  <Popconfirm title={`确认删除分类：${row.name || ''}？`} onConfirm={() => handleDelete(row)}>
                     <Button type="link" danger icon={<DeleteOutlined />}>删除</Button>
                   </Popconfirm>
                 </Space>
@@ -149,4 +166,3 @@ const DeviceCategoryPage: React.FC = () => {
 };
 
 export default DeviceCategoryPage;
-

@@ -1,130 +1,160 @@
-import { get, post, del, put, file } from '/@/utils/request';
+import { withId, withIds } from './shared';
+import { tdel, tfile, tget, tpost, tput } from './typed';
+import type {
+  ApiNormalizedListResult,
+  ApiNormalizedResult,
+  ApiParams,
+  Certificate,
+  Dict,
+  DictData,
+  SystemApi,
+  SystemBlacklist,
+  SystemConfig,
+  SystemDept,
+  SystemMenu,
+  SystemMessage,
+  SystemPlugin,
+  SystemPost,
+  SystemRole,
+  SystemTask,
+  SystemUser,
+} from './types';
 
-const toIds = (value: number | number[]) => (Array.isArray(value) ? value : [value]);
+type Query = ApiParams;
+type AnyRecord = Record<string, unknown>;
+type ActionResult = ApiNormalizedResult<AnyRecord>;
 
+const list = <T>(url: string, params?: Query) => tget<ApiNormalizedListResult<T>>(url, params);
+const detail = <T>(url: string, id: number, key = 'id') => tget<ApiNormalizedResult<T>>(url, withId(id, key));
+const create = (url: string, data: Query | FormData) => tpost<ActionResult>(url, data);
+const update = (url: string, data: Query | FormData) => tput<ActionResult>(url, data);
+const remove = (url: string, params: Query) => tdel<ActionResult>(url, params);
+
+/** 登录与用户会话相关接口 */
 const login = {
-  login: (data: object) => post('/login', data),
-  logout: () => post('/loginOut'),
-  currentUser: () => get('/system/user/currentUser'),
-  captcha: () => get('/captcha'),
-  ssoList: () => get('/system/sys_oauth/list_front'),
-  oauth: (data: object) => post('/oauth', data),
+  login: (data: Query) => create('/login', data),
+  logout: () => create('/loginOut', {}),
+  currentUser: () => tget<ApiNormalizedResult<AnyRecord>>('/system/user/currentUser'),
+  captcha: () => tget<ApiNormalizedResult<AnyRecord>>('/captcha'),
+  ssoList: () => tget<ApiNormalizedResult<AnyRecord>>('/system/sys_oauth/list_front'),
+  oauth: (data: Query) => create('/oauth', data),
 };
 
+/** 系统主资源接口（用户、角色、菜单、字典等） */
 const system = {
   user: {
-    getList: (params?: object) => get('/system/user/list', params),
-    add: (data: object) => post('/system/user/add', data),
-    edit: (data: object) => put('/system/user/edit', data),
-    del: (id: number) => del('/system/user/delete', { id }),
-    detail: (id: number) => get('/system/user/detail', { id }),
-    resetPassword: (id: number, password: string) => post('/system/user/resetPwd', { id, password }),
-    setStatus: (id: number, status: number) => post('/system/user/changeStatus', { id, status }),
+    getList: (params?: Query) => list<SystemUser>('/system/user/list', params),
+    add: (data: Query) => create('/system/user/add', data),
+    edit: (data: Query) => update('/system/user/edit', data),
+    del: (id: number) => remove('/system/user/delete', withId(id)),
+    detail: (id: number) => detail<SystemUser>('/system/user/detail', id),
+    resetPassword: (id: number, password: string) => create('/system/user/resetPwd', { id, password }),
+    setStatus: (id: number, status: number) => create('/system/user/changeStatus', { id, status }),
   },
   role: {
-    getList: (params?: object) => get('/system/role/list', params),
-    add: (data: object) => post('/system/role/add', data),
-    edit: (data: object) => put('/system/role/edit', data),
-    del: (id: number) => del('/system/role/delete', { id }),
-    detail: (id: number) => get('/system/role/detail', { id }),
+    getList: (params?: Query) => list<SystemRole>('/system/role/list', params),
+    add: (data: Query) => create('/system/role/add', data),
+    edit: (data: Query) => update('/system/role/edit', data),
+    del: (id: number) => remove('/system/role/delete', withId(id)),
+    detail: (id: number) => detail<SystemRole>('/system/role/detail', id),
     auth: {
-      tree: (roleId: number) => get('/system/role/auth/tree', { roleId }),
-      update: (data: object) => post('/system/role/auth/update', data),
+      tree: (roleId: number) => tget<ApiNormalizedResult<AnyRecord>>('/system/role/auth/tree', { roleId }),
+      update: (data: Query) => create('/system/role/auth/update', data),
     },
   },
   dept: {
-    getList: (params?: object) => get('/system/dept/list', params),
-    add: (data: object) => post('/system/dept/add', data),
-    edit: (data: object) => put('/system/dept/edit', data),
-    del: (id: number) => del('/system/dept/delete', { id }),
-    detail: (id: number) => get('/system/dept/detail', { id }),
+    getList: (params?: Query) => list<SystemDept>('/system/dept/list', params),
+    add: (data: Query) => create('/system/dept/add', data),
+    edit: (data: Query) => update('/system/dept/edit', data),
+    del: (id: number) => remove('/system/dept/delete', withId(id)),
+    detail: (id: number) => detail<SystemDept>('/system/dept/detail', id),
   },
   post: {
-    getList: (params?: object) => get('/system/post/list', params),
-    add: (data: object) => post('/system/post/add', data),
-    edit: (data: object) => put('/system/post/edit', data),
-    del: (id: number) => del('/system/post/delete', { id }),
-    detail: (id: number) => get('/system/post/detail', { id }),
+    getList: (params?: Query) => list<SystemPost>('/system/post/list', params),
+    add: (data: Query) => create('/system/post/add', data),
+    edit: (data: Query) => update('/system/post/edit', data),
+    del: (id: number) => remove('/system/post/delete', withId(id)),
+    detail: (id: number) => detail<SystemPost>('/system/post/detail', id),
   },
   menu: {
-    getList: (params?: object) => get('/system/menu/list', params),
-    add: (data: object) => post('/system/menu/add', data),
-    edit: (data: object) => put('/system/menu/edit', data),
-    del: (id: number) => del('/system/menu/delete', { id }),
-    detail: (id: number) => get('/system/menu/detail', { id }),
-    tree: () => get('/system/menu/tree'),
+    getList: (params?: Query) => list<SystemMenu>('/system/menu/list', params),
+    add: (data: Query) => create('/system/menu/add', data),
+    edit: (data: Query) => update('/system/menu/edit', data),
+    del: (id: number) => remove('/system/menu/delete', withId(id)),
+    detail: (id: number) => detail<SystemMenu>('/system/menu/detail', id),
+    tree: () => tget<ApiNormalizedResult<SystemMenu[]>>('/system/menu/tree'),
   },
   api: {
-    getList: (params?: object) => get('/system/api/list', params),
-    add: (data: object) => post('/system/api/add', data),
-    edit: (data: object) => put('/system/api/edit', data),
-    del: (id: number) => del('/system/api/delete', { id }),
-    detail: (id: number) => get('/system/api/detail', { id }),
-    refresh: () => post('/system/api/refresh'),
+    getList: (params?: Query) => list<SystemApi>('/system/api/list', params),
+    add: (data: Query) => create('/system/api/add', data),
+    edit: (data: Query) => update('/system/api/edit', data),
+    del: (id: number) => remove('/system/api/delete', withId(id)),
+    detail: (id: number) => detail<SystemApi>('/system/api/detail', id),
+    refresh: () => create('/system/api/refresh', {}),
   },
   config: {
-    get: () => get('/system/config/get'),
-    getList: (params?: object) => get('/common/config/list', params),
-    add: (data: object) => post('/common/config/add', data),
-    edit: (data: object) => put('/common/config/edit', data),
-    del: (ids: number[] | number) => del('/common/config/delete', { ids: toIds(ids) }),
+    get: () => tget<ApiNormalizedResult<SystemConfig>>('/system/config/get'),
+    getList: (params?: Query) => list<SystemConfig>('/common/config/list', params),
+    add: (data: Query) => create('/common/config/add', data),
+    edit: (data: Query) => update('/common/config/edit', data),
+    del: (ids: number[] | number) => remove('/common/config/delete', withIds(ids)),
   },
   dict: {
-    getList: (params?: object) => get('/common/dict/type/list', params),
-    add: (data: object) => post('/common/dict/type/add', data),
-    edit: (data: object) => put('/common/dict/type/edit', data),
-    del: (ids: number[] | number) => del('/common/dict/type/delete', { ids: toIds(ids) }),
-    detail: (id: number) => get('/common/dict/type/detail', { id }),
-    dataList: (params?: object) => get('/common/dict/data/list', params),
-    addData: (data: object) => post('/common/dict/data/add', data),
-    editData: (data: object) => put('/common/dict/data/edit', data),
-    delData: (ids: number[] | number) => del('/common/dict/data/delete', { ids: toIds(ids) }),
+    getList: (params?: Query) => list<Dict>('/common/dict/type/list', params),
+    add: (data: Query) => create('/common/dict/type/add', data),
+    edit: (data: Query) => update('/common/dict/type/edit', data),
+    del: (ids: number[] | number) => remove('/common/dict/type/delete', withIds(ids)),
+    detail: (id: number) => detail<Dict>('/common/dict/type/detail', id),
+    dataList: (params?: Query) => list<DictData>('/common/dict/data/list', params),
+    addData: (data: Query) => create('/common/dict/data/add', data),
+    editData: (data: Query) => update('/common/dict/data/edit', data),
+    delData: (ids: number[] | number) => remove('/common/dict/data/delete', withIds(ids)),
   },
   task: {
-    getList: (params?: object) => get('/system/task/list', params),
-    add: (data: object) => post('/system/task/add', data),
-    edit: (data: object) => put('/system/task/edit', data),
-    del: (id: number) => del('/system/task/delete', { id }),
-    detail: (id: number) => get('/system/task/detail', { id }),
-    changeStatus: (data: object) => post('/system/task/changeStatus', data),
-    runOnce: (id: number) => post('/system/task/runOnce', { id }),
+    getList: (params?: Query) => list<SystemTask>('/system/task/list', params),
+    add: (data: Query) => create('/system/task/add', data),
+    edit: (data: Query) => update('/system/task/edit', data),
+    del: (id: number) => remove('/system/task/delete', withId(id)),
+    detail: (id: number) => detail<SystemTask>('/system/task/detail', id),
+    changeStatus: (data: Query) => create('/system/task/changeStatus', data),
+    runOnce: (id: number) => create('/system/task/runOnce', withId(id)),
   },
   monitor: {
-    server: () => get('/system/monitor/server'),
-    loginLog: (params?: object) => get('/system/login/log/list', params),
-    operLog: (params?: object) => get('/system/oper/log/list', params),
-    online: (params?: object) => get('/system/userOnline/list', params),
-    kickout: (id: number) => del('/system/userOnline/strongBack', { id }),
-    notice: (params?: object) => get('/system/monitor/notice/list', params),
-    publishNotice: (data: object) => post('/system/monitor/notice/publish', data),
-    cache: () => get('/system/monitor/cache'),
-    plugin: (params?: object) => get('/system/plugins/list', params),
+    server: () => tget<ApiNormalizedResult<AnyRecord>>('/system/monitor/server'),
+    loginLog: (params?: Query) => list<AnyRecord>('/system/login/log/list', params),
+    operLog: (params?: Query) => list<AnyRecord>('/system/oper/log/list', params),
+    online: (params?: Query) => list<SystemUser>('/system/userOnline/list', params),
+    kickout: (id: number) => remove('/system/userOnline/strongBack', withId(id)),
+    notice: (params?: Query) => list<SystemMessage>('/system/monitor/notice/list', params),
+    publishNotice: (data: Query) => create('/system/monitor/notice/publish', data),
+    cache: () => tget<ApiNormalizedResult<AnyRecord>>('/system/monitor/cache'),
+    plugin: (params?: Query) => list<SystemPlugin>('/system/plugins/list', params),
   },
   dbInit: {
-    getList: (params?: object) => get('/system/dbInit/list', params),
-    test: (data: object | number) => post('/system/dbInit/test', typeof data === 'number' ? { id: data } : data),
-    add: (data: object) => post('/system/dbInit/add', data),
-    edit: (data: object) => put('/system/dbInit/edit', data),
-    del: (id: number) => del('/system/dbInit/delete', { id }),
-    sync: (id: number) => post('/system/dbInit/sync', { id }),
+    getList: (params?: Query) => list<AnyRecord>('/system/dbInit/list', params),
+    test: (data: Query | number) => create('/system/dbInit/test', typeof data === 'number' ? withId(data) : data),
+    add: (data: Query) => create('/system/dbInit/add', data),
+    edit: (data: Query) => update('/system/dbInit/edit', data),
+    del: (id: number) => remove('/system/dbInit/delete', withId(id)),
+    sync: (id: number) => create('/system/dbInit/sync', withId(id)),
   },
   blacklist: {
-    getList: (params?: object) => get('/system/blacklist/list', params),
-    add: (data: object) => post('/system/blacklist/add', data),
-    edit: (data: object) => put('/system/blacklist/edit', data),
-    del: (ids: number[] | number) => del('/system/blacklist/delete', { ids: toIds(ids) }),
-    changeStatus: (data: object) => post('/system/blacklist/status', data),
-    detail: (params?: object) => get('/system/blacklist/get', params),
+    getList: (params?: Query) => list<SystemBlacklist>('/system/blacklist/list', params),
+    add: (data: Query) => create('/system/blacklist/add', data),
+    edit: (data: Query) => update('/system/blacklist/edit', data),
+    del: (ids: number[] | number) => remove('/system/blacklist/delete', withIds(ids)),
+    changeStatus: (data: Query) => create('/system/blacklist/status', data),
+    detail: (params?: Query) => tget<ApiNormalizedResult<SystemBlacklist>>('/system/blacklist/get', params),
   },
 };
 
 const certificate = {
-  getList: (params?: object) => get('/system/certificate/list', params),
-  getAll: () => get('/system/certificate/getAll'),
-  add: (data: object) => post('/system/certificate/add', data),
-  edit: (data: object) => put('/system/certificate/edit', data),
-  del: (id: number) => del('/system/certificate/delete', { id }),
-  editStatus: (data: object) => post('/system/certificate/editStatus', data),
+  getList: (params?: Query) => list<Certificate>('/system/certificate/list', params),
+  getAll: () => tget<ApiNormalizedResult<Certificate[]>>('/system/certificate/getAll'),
+  add: (data: Query) => create('/system/certificate/add', data),
+  edit: (data: Query) => update('/system/certificate/edit', data),
+  del: (id: number) => remove('/system/certificate/delete', withId(id)),
+  editStatus: (data: Query) => create('/system/certificate/editStatus', data),
 };
 
 const role = {
@@ -136,59 +166,68 @@ const role = {
 
 const user = {
   ...system.user,
-  editUserInfo: (data: object) => put('/system/user/editUserInfo', data),
-  setAvatar: (id: number, avatar: string) => put('/system/user/editAvatar', { id, avatar }),
+  editUserInfo: (data: Query) => update('/system/user/editUserInfo', data),
+  setAvatar: (id: number, avatar: string) => update('/system/user/editAvatar', { ...withId(id), avatar }),
 };
 
 const log = {
-  getList: (params?: object) => get('/system/login/log/list', params),
-  export: (params?: object) => file('/system/login/log/export', params),
-  del: (infoIds: number[] | number) => del('/system/login/log/del', { infoIds: toIds(infoIds) }),
-  detail: (infoId: number) => get('/system/login/log/detail', { infoId }),
-  clearLog: () => post('/system/login/log/clear'),
+  getList: (params?: Query) => list<AnyRecord>('/system/login/log/list', params),
+  export: (params?: Query) => tfile<Blob>('/system/login/log/export', params),
+  del: (infoIds: number[] | number) => remove('/system/login/log/del', withIds(infoIds, 'infoIds')),
+  detail: (infoId: number) => detail<AnyRecord>('/system/login/log/detail', infoId, 'infoId'),
+  clearLog: () => create('/system/login/log/clear', {}),
 };
 
 const oper = {
-  getList: (params?: object) => get('/system/oper/log/list', params),
-  del: (operIds: number[] | number) => del('/system/oper/log/del', { operIds: toIds(operIds) }),
-  detail: (operId: number) => get('/system/oper/log/detail', { operId }),
-  clearLog: () => post('/system/oper/log/clear'),
+  getList: (params?: Query) => list<AnyRecord>('/system/oper/log/list', params),
+  del: (operIds: number[] | number) => remove('/system/oper/log/del', withIds(operIds, 'operIds')),
+  detail: (operId: number) => detail<AnyRecord>('/system/oper/log/detail', operId, 'operId'),
+  clearLog: () => create('/system/oper/log/clear', {}),
 };
 
 const online = {
-  getList: (params?: object) => get('/system/userOnline/list', params),
-  strongBack: (id: number) => del('/system/userOnline/strongBack', { id }),
+  getList: (params?: Query) => list<SystemUser>('/system/userOnline/list', params),
+  strongBack: (id: number) => remove('/system/userOnline/strongBack', withId(id)),
 };
 
 const plugin = {
-  getList: (params?: object) => get('/system/plugins/list', params),
-  del: (ids: number[] | number) => del('/system/plugins/del', { ids: toIds(ids) }),
-  changeStatus: (data: object) => post('/system/plugins/set', data),
-  edit: (data: object) => put('/system/plugins/edit', data),
-  addPluginFile: (formData: FormData) => post('/system/plugins/add', formData),
+  getList: (params?: Query) => list<SystemPlugin>('/system/plugins/list', params),
+  del: (ids: number[] | number) => remove('/system/plugins/del', withIds(ids)),
+  changeStatus: (data: Query) => create('/system/plugins/set', data),
+  edit: (data: Query) => update('/system/plugins/edit', data),
+  addPluginFile: (formData: FormData) => create('/system/plugins/add', formData),
 };
 
 const blackList = {
-  getList: (params?: object) => get('/system/blacklist/list', params),
-  add: (data: object) => post('/system/blacklist/add', data),
-  delete: (ids: number[] | number) => del('/system/blacklist/delete', { ids: toIds(ids) }),
-  edit: (data: object) => put('/system/blacklist/edit', data),
-  detail: (params?: object) => get('/system/blacklist/get', params),
-  changeStatus: (data: object) => post('/system/blacklist/status', data),
+  getList: (params?: Query) => list<SystemBlacklist>('/system/blacklist/list', params),
+  add: (data: Query) => create('/system/blacklist/add', data),
+  delete: (ids: number[] | number) => remove('/system/blacklist/delete', withIds(ids)),
+  edit: (data: Query) => update('/system/blacklist/edit', data),
+  detail: (params?: Query) => tget<ApiNormalizedResult<SystemBlacklist>>('/system/blacklist/get', params),
+  changeStatus: (data: Query) => create('/system/blacklist/status', data),
 };
 
 const basicConfig = {
-  getDetails: (params?: object) => get('/common/getSysConfigSetting', params),
-  setDetails: (data: object) => put('/common/editSysConfigSetting', data),
-  getEmailSetting: () => get('/common/getEmailSetting'),
-  editEmailSetting: (data: object) => put('/common/editEmailSetting', data),
-  getSecuritySetting: () => get('/common/getSecuritySetting'),
-  editSecuritySetting: (data: object) => put('/common/editSecuritySetting', data),
+  getDetails: (params?: Query) => tget<ApiNormalizedResult<AnyRecord>>('/common/getSysConfigSetting', params),
+  setDetails: (data: Query) => update('/common/editSysConfigSetting', data),
+  getEmailSetting: () => tget<ApiNormalizedResult<AnyRecord>>('/common/getEmailSetting'),
+  editEmailSetting: (data: Query) => update('/common/editEmailSetting', data),
+  getSecuritySetting: () => tget<ApiNormalizedResult<AnyRecord>>('/common/getSecuritySetting'),
+  editSecuritySetting: (data: Query) => update('/common/editSecuritySetting', data),
+};
+
+const message = {
+  allUnRead: () => tget<ApiNormalizedResult<number>>('/system/message/allUnRead'),
+  clear: () => tget<ApiNormalizedResult<number>>('/system/message/clear'),
+  del: (ids: number[] | number) => remove('/system/message/del', withIds(ids)),
+  getList: (params?: Query) => list<SystemMessage>('/system/message/list', params),
+  read: (id: number) => update('/system/message/read', withId(id)),
+  unReadCount: () => tget<ApiNormalizedResult<number>>('/system/message/unReadCount'),
 };
 
 export default {
-  sysinfo: () => get('/sysinfo'),
-  getInfoByKey: (ConfigKey: string) => get('/common/config/getInfoByKey', { ConfigKey }),
+  sysinfo: () => tget<ApiNormalizedResult<AnyRecord>>('/sysinfo'),
+  getInfoByKey: (ConfigKey: string) => tget<ApiNormalizedResult<SystemConfig>>('/common/config/getInfoByKey', { ConfigKey }),
   login,
   user,
   role,
@@ -203,5 +242,6 @@ export default {
   plugin,
   blackList,
   basicConfig,
+  message,
   system,
 };

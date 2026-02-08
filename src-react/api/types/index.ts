@@ -1,4 +1,26 @@
 // API 响应类型定义
+export interface ApiEnvelope<T = unknown> {
+  code: number;
+  message?: string;
+  msg?: string;
+  data: T;
+}
+
+export type ApiNormalizedResult<T> = T & {
+  code?: number;
+  message?: string;
+  msg?: string;
+  data?: T;
+};
+
+export type ApiNormalizedListResult<T> = ApiNormalizedResult<ApiListResult<T>>;
+
+export interface ApiListResult<T> {
+  list: T[];
+  total: number;
+  page?: number;
+}
+
 export interface ApiPageResult<T> {
   list: T[];
   total: number;
@@ -7,13 +29,21 @@ export interface ApiPageResult<T> {
 }
 
 export interface ApiParams {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface ApiPagedQuery {
   pageNum?: number;
   pageSize?: number;
-  [key: string]: any;
+  [key: string]: unknown;
+}
+
+export interface ApiIdParam {
+  id: number | string;
+}
+
+export interface ApiIdsParam {
+  ids: Array<number | string>;
 }
 
 // 告警相关类型
@@ -64,6 +94,31 @@ export interface Product {
   createdAt: string;
 }
 
+export interface DeviceChannel {
+  id: number;
+  name?: string;
+  deviceKey?: string;
+  status?: number;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+
+export interface DeviceCategory {
+  id: number;
+  name?: string;
+  status?: number;
+  [key: string]: unknown;
+}
+
+export interface DeviceInstance {
+  id: number;
+  deviceKey: string;
+  productKey?: string;
+  status?: number;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+
 // 网络相关类型
 export interface NetworkServer {
   id: number;
@@ -111,6 +166,44 @@ export interface NoticeLog {
   content?: string;
   sendTime: string;
   createdAt: string;
+}
+
+export interface NoticeTemplate {
+  id: number;
+  title?: string;
+  name?: string;
+  configId?: number;
+  status?: number;
+  content?: string;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+
+export interface DatahubApi {
+  id: number;
+  name?: string;
+  method?: string;
+  path?: string;
+  status?: number;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+
+export interface DatahubTopic {
+  id: number;
+  name?: string;
+  topic?: string;
+  status?: number;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+
+export interface AnalysisPoint {
+  title?: string;
+  value?: number;
+  count?: number;
+  month?: string;
+  [key: string]: unknown;
 }
 
 // 字典相关类型
@@ -172,4 +265,77 @@ export interface SystemConfig {
   type: string;
   description?: string;
   createdAt: string;
+}
+
+export interface AppInfo {
+  id: number;
+  name?: string;
+  code?: string;
+  status?: number;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+
+export interface AlarmLevel {
+  id: number;
+  name?: string;
+  level?: string;
+  [key: string]: unknown;
+}
+
+export interface SystemDept {
+  id: number;
+  name?: string;
+  parentId?: number;
+  status?: number;
+  [key: string]: unknown;
+}
+
+export interface SystemPost {
+  id: number;
+  name?: string;
+  code?: string;
+  status?: number;
+  [key: string]: unknown;
+}
+
+export interface SystemMenu {
+  id: number;
+  name?: string;
+  path?: string;
+  parentId?: number;
+  status?: number;
+  [key: string]: unknown;
+}
+
+export interface SystemTask {
+  id: number;
+  name?: string;
+  cron?: string;
+  status?: number;
+  [key: string]: unknown;
+}
+
+export interface SystemPlugin {
+  id: number;
+  name?: string;
+  code?: string;
+  status?: number;
+  [key: string]: unknown;
+}
+
+export interface SystemBlacklist {
+  id: number;
+  ip?: string;
+  status?: number;
+  [key: string]: unknown;
+}
+
+export interface SystemMessage {
+  id: number;
+  title?: string;
+  content?: string;
+  isRead?: number;
+  createdAt?: string;
+  [key: string]: unknown;
 }

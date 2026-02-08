@@ -1,40 +1,77 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, Select, message } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Modal, Form, Input, message } from 'antd';
 import noticeApi from '../../../../../../api/notice';
 
 interface EditTemplateProps {
   visible: boolean;
   data: any;
+  sendGateway: string;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-const EditTemplate: React.FC<EditTemplateProps> = ({ visible, data, onClose, onSuccess }) => {
+const EditTemplate: React.FC<EditTemplateProps> = ({ visible, data, sendGateway, onClose, onSuccess }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [currentTemplate, setCurrentTemplate] = useState<any>(null);
 
   useEffect(() => {
-    if (visible && data) {
-      // Load template data if needed
-      form.setFieldsValue({
-        title: data.title + ' - 模板',
-      });
-    } else if (visible && !data) {
-      form.resetFields();
-    }
+    const loadTemplate = async () => {
+      if (!visible) return;
+
+      if (!data?.id) {
+        setCurrentTemplate(null);
+        form.resetFields();
+        return;
+      }
+
+      try {
+        const res: any = await noticeApi.template.configIddetail(data.id);
+        const payload = res?.data || res?.Data || res || {};
+        setCurrentTemplate(payload || null);
+        form.setFieldsValue({
+          code: payload?.code || '',
+          title: payload?.title || data?.title || '',
+          content: payload?.content || '',
+        });
+      } catch (error) {
+        setCurrentTemplate(null);
+        form.setFieldsValue({
+          code: '',
+          title: data?.title || '',
+          content: '',
+        });
+      }
+    };
+
+    loadTemplate();
   }, [visible, data, form]);
 
   const handleSubmit = async () => {
+    if (!data?.id) {
+      message.error('请先选择通知配置');
+      return;
+    }
+
     try {
       const values = await form.validateFields();
       setLoading(true);
 
-      // In a real implementation, this would save the template
+      const payload = {
+        ...(currentTemplate || {}),
+        ...values,
+        configId: data.id,
+        sendGateway,
+      };
+
+      await noticeApi.template.save(payload);
       message.success('模板保存成功');
       onSuccess();
+      onClose();
     } catch (error: any) {
-      if (error.errorFields) return;
-      message.error('保存失败');
+      if (!error?.errorFields) {
+        message.error('保存失败');
+      }
     } finally {
       setLoading(false);
     }
@@ -42,27 +79,24 @@ const EditTemplate: React.FC<EditTemplateProps> = ({ visible, data, onClose, onS
 
   return (
     <Modal
-      title="模板配置"
+      title="设置配置模板"
       open={visible}
       onOk={handleSubmit}
       onCancel={onClose}
       confirmLoading={loading}
-      width={600}
+      width={680}
     >
       <Form form={form} layout="vertical">
-        <Form.Item name="template_title" label="模板标题">
-          <Input placeholder="请输入模板标题" />
+        <Form.Item name="code" label="模板代码" rules={[{ required: true, message: '请输入模板代码' }]}>
+          <Input placeholder="请输入代码" />
         </Form.Item>
 
-        <Form.Item name="template_content" label="模板内容">
-          <Input.TextArea rows={6} placeholder="请输入模板内容，支持变量替换，如：{device_name}、{alarm_value}等" />
+        <Form.Item name="title" label="模板名称" rules={[{ required: true, message: '请输入模板名称' }]}>
+          <Input placeholder="请输入名称" />
         </Form.Item>
 
-        <Form.Item name="template_type" label="模板类型">
-          <Select placeholder="请选择模板类型">
-            <Select.Option value="text">文本模板</Select.Option>
-            <Select.Option value="markdown">Markdown模板</Select.Option>
-          </Select>
+        <Form.Item name="content" label="模板内容" rules={[{ required: true, message: '请输入模板内容' }]}>
+          <Input.TextArea rows={8} placeholder="请输入内容" />
         </Form.Item>
       </Form>
     </Modal>

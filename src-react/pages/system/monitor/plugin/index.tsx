@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Space, Input, Tag, Modal, message, Upload } from 'antd';
-import { PlusOutlined, SyncOutlined, EditOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons';
+import { SyncOutlined, UploadOutlined } from '@ant-design/icons';
 import sysApi from '../../../../api/system';
 import EditPlugin from './component/editPlugin';
 import './index.css';
@@ -13,7 +13,26 @@ interface PluginItem {
   description: string;
   author: string;
   status: number;
+  [key: string]: any;
 }
+
+const getListAndTotal = (res: any) => {
+  const list = res?.list || res?.data?.list || res?.Data || [];
+  const total = res?.total ?? res?.data?.total ?? res?.Total ?? list.length;
+  return { list, total };
+};
+
+const normalizeAuthor = (author: any) => {
+  if (Array.isArray(author)) return author.join(',');
+  if (typeof author !== 'string') return author || '-';
+  try {
+    const parsed = JSON.parse(author);
+    if (Array.isArray(parsed)) return parsed.join(',');
+    return author;
+  } catch {
+    return author;
+  }
+};
 
 const PluginList: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -26,13 +45,15 @@ const PluginList: React.FC = () => {
   });
   const [editVisible, setEditVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<PluginItem | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res: any = await sysApi.system.monitor.plugin(params);
-      setData(res.list || []);
-      setTotal(res.total || 0);
+      const res: any = await sysApi.plugin.getList(params);
+      const { list, total: listTotal } = getListAndTotal(res);
+      setData(list);
+      setTotal(listTotal);
     } catch (error) {
       message.error('获取插件列表失败');
     } finally {
@@ -45,16 +66,11 @@ const PluginList: React.FC = () => {
   }, [params]);
 
   const handleSearch = () => {
-    setParams({ ...params, pageNum: 1 });
+    setParams((prev) => ({ ...prev, pageNum: 1 }));
   };
 
   const handleReset = () => {
     setParams({ pageNum: 1, pageSize: 10, keyWord: '' });
-  };
-
-  const handleAdd = () => {
-    setEditingItem(null);
-    setEditVisible(true);
   };
 
   const handleEdit = (record: PluginItem) => {
@@ -64,7 +80,9 @@ const PluginList: React.FC = () => {
 
   const handleStatusChange = async (record: PluginItem, status: number) => {
     try {
-      message.info('状态切换功能开发中');
+      await sysApi.plugin.changeStatus({ id: record.id, status });
+      message.success('状态更新成功');
+      fetchData();
     } catch (error) {
       message.error('操作失败');
     }
@@ -75,13 +93,39 @@ const PluginList: React.FC = () => {
       title: '确认删除',
       content: `确定要删除插件 "${record.name}" 吗?`,
       onOk: async () => {
-        message.info('删除功能开发中');
+        try {
+          await sysApi.plugin.del([record.id]);
+          message.success('删除成功');
+          fetchData();
+        } catch (error) {
+          message.error('删除失败');
+        }
       },
     });
   };
 
-  const handleUpload = () => {
-    message.info('上传插件功能开发中');
+  const handleUpload = async (options: any) => {
+    const { file, onSuccess, onError } = options || {};
+    if (!file) {
+      onError?.(new Error('请选择文件'));
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file as File);
+
+    setUploading(true);
+    try {
+      await sysApi.plugin.addPluginFile(formData);
+      message.success('上传成功');
+      onSuccess?.({}, file);
+      fetchData();
+    } catch (error) {
+      message.error('上传失败');
+      onError?.(error);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const getStatusTag = (status: number) => {
@@ -100,7 +144,13 @@ const PluginList: React.FC = () => {
     { title: '插件类型', dataIndex: 'types', key: 'types', width: 120 },
     { title: '功能类型', dataIndex: 'handleType', key: 'handleType', width: 120 },
     { title: '说明', dataIndex: 'description', key: 'description', ellipsis: true },
-    { title: '作者', dataIndex: 'author', key: 'author', width: 100 },
+    {
+      title: '作者',
+      dataIndex: 'author',
+      key: 'author',
+      width: 140,
+      render: (author: any) => normalizeAuthor(author),
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -144,7 +194,7 @@ const PluginList: React.FC = () => {
             placeholder="关键字"
             style={{ width: 180 }}
             value={params.keyWord}
-            onChange={(e) => setParams({ ...params, keyWord: e.target.value })}
+            onChange={(e) => setParams((prev) => ({ ...prev, keyWord: e.target.value }))}
             onPressEnter={handleSearch}
           />
           <Button type="primary" icon={<SyncOutlined />} onClick={handleSearch}>
@@ -153,12 +203,11 @@ const PluginList: React.FC = () => {
           <Button icon={<SyncOutlined />} onClick={handleReset}>
             重置
           </Button>
-          <Button type="primary" icon={<UploadOutlined />} onClick={handleUpload}>
-            上传插件ZIP
-          </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-            新增插件
-          </Button>
+          <Upload accept=".zip" showUploadList={false} customRequest={handleUpload}>
+            <Button type="primary" icon={<UploadOutlined />} loading={uploading}>
+              上传插件ZIP
+            </Button>
+          </Upload>
         </Space>
 
         <Table
@@ -170,7 +219,7 @@ const PluginList: React.FC = () => {
             total,
             current: params.pageNum,
             pageSize: params.pageSize,
-            onChange: (page, pageSize) => setParams({ ...params, pageNum: page, pageSize }),
+            onChange: (page, pageSize) => setParams((prev) => ({ ...prev, pageNum: page, pageSize })),
           }}
         />
       </Card>

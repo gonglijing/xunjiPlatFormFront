@@ -16,6 +16,22 @@ interface InstanceItem {
   createdAt?: string;
 }
 
+type AnyRecord = Record<string, unknown>;
+
+const asRecord = (value: unknown): AnyRecord => {
+  if (typeof value === 'object' && value !== null) {
+    return value as AnyRecord;
+  }
+  return {};
+};
+
+const toList = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+
+const toNumber = (value: unknown, fallback = 0): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
 const DeviceInstancePage: React.FC = () => {
   const [queryForm] = Form.useForm();
   const [editForm] = Form.useForm();
@@ -38,12 +54,14 @@ const DeviceInstancePage: React.FC = () => {
         pageSize,
         ...raw,
       };
-      const res: any = await deviceApi.instance.getList(queryParams);
-      const payload = res?.data || res;
-      const list = payload?.list || payload?.Data || payload || [];
-      const count = payload?.total || payload?.Total || 0;
-      setRows(Array.isArray(list) ? list : []);
-      setTotal(Number(count) || 0);
+      const res = await deviceApi.instance.getList(queryParams);
+      const rawPayload = asRecord(res).data ?? res;
+      const payload = asRecord(rawPayload);
+      const list = payload.list ?? payload.Data ?? rawPayload;
+      const count = payload.total ?? payload.Total ?? 0;
+
+      setRows(toList<InstanceItem>(list));
+      setTotal(toNumber(count));
     } catch {
       message.error('获取设备实例失败');
     } finally {
@@ -164,7 +182,7 @@ const DeviceInstancePage: React.FC = () => {
               key: 'action',
               fixed: 'right',
               width: 220,
-              render: (_: any, row: InstanceItem) => (
+              render: (_: unknown, row: InstanceItem) => (
                 <Space>
                   <Button
                     type="link"

@@ -5,8 +5,8 @@ import { RootState } from './store';
 import Layout from './pages/layout';
 import Login from './pages/login';
 import { Loading } from './components';
+import { toCanonicalPath } from './utils/routePath';
 
-// 懒加载页面组件
 const Home = lazy(() => import('./pages/iot/dashboard'));
 const Device = lazy(() => import('./pages/iot/device'));
 const DeviceCategory = lazy(() => import('./pages/iot/deviceCategory'));
@@ -42,6 +42,7 @@ const SystemMonitorLoginLog = lazy(() => import('./pages/system/monitor/loginLog
 const SystemMonitorOnline = lazy(() => import('./pages/system/monitor/online'));
 const SystemMonitorCache = lazy(() => import('./pages/system/monitor/cache'));
 const SystemMonitorPlugin = lazy(() => import('./pages/system/monitor/plugin'));
+const SystemMonitorNotice = lazy(() => import('./pages/system/monitor/notice'));
 const SystemTask = lazy(() => import('./pages/system/task'));
 const SystemDbInit = lazy(() => import('./pages/system/dbInit'));
 const SystemDept = lazy(() => import('./pages/system/dept'));
@@ -59,18 +60,12 @@ const SsoLogin = lazy(() => import('./pages/sso'));
 const Page404 = lazy(() => import('./pages/error/404'));
 const Page401 = lazy(() => import('./pages/error/401'));
 
-const LoadingPage = () => (
-  <Loading visible />
-);
+const LoadingPage = () => <Loading visible />;
 
-// 路由懒加载包装
 const LazyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <Suspense fallback={<LoadingPage />}>
-    {children}
-  </Suspense>
+  <Suspense fallback={<LoadingPage />}>{children}</Suspense>
 );
 
-// 路由守卫组件
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { token } = useSelector((state: RootState) => state.user);
   const location = useLocation();
@@ -88,14 +83,30 @@ const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   return <LazyRoute>{children}</LazyRoute>;
 };
 
+const LegacyPathRedirect: React.FC = () => {
+  const location = useLocation();
+  const targetPath = toCanonicalPath(location.pathname);
+
+  if (targetPath === location.pathname) {
+    return <Navigate to="/404" replace />;
+  }
+
+  return <Navigate to={`${targetPath}${location.search || ''}`} replace />;
+};
+
 const App: React.FC = () => {
   return (
     <Routes>
-      {/* 公开路由 */}
       <Route path="/login" element={<Login />} />
-      <Route path="/sso/:type" element={<LazyRoute><SsoLogin /></LazyRoute>} />
-      
-      {/* 受保护路由 */}
+      <Route
+        path="/sso/:type"
+        element={
+          <LazyRoute>
+            <SsoLogin />
+          </LazyRoute>
+        }
+      />
+
       <Route
         path="/"
         element={
@@ -105,9 +116,16 @@ const App: React.FC = () => {
         }
       >
         <Route index element={<Navigate to="/home" replace />} />
+
+        <Route path="iotmanager/*" element={<LegacyPathRedirect />} />
+        <Route path="system/manage/*" element={<LegacyPathRedirect />} />
+        <Route path="noticeservices/*" element={<LegacyPathRedirect />} />
+        <Route path="device/product/*" element={<LegacyPathRedirect />} />
+        <Route path="network/server/detail/:id" element={<LegacyPathRedirect />} />
+        <Route path="network/tunnel/detail/:id" element={<LegacyPathRedirect />} />
+
         <Route path="home" element={<Home />} />
-        
-        {/* IoT 管理 */}
+
         <Route path="device/*" element={<Device />} />
         <Route path="device/category" element={<DeviceCategory />} />
         <Route path="device/instance" element={<DeviceInstance />} />
@@ -131,7 +149,6 @@ const App: React.FC = () => {
         <Route path="notice/config/setting/:gateway" element={<NoticeConfigSetting />} />
         <Route path="notice/log" element={<NoticeLog />} />
 
-        {/* 系统管理 */}
         <Route path="system/user/*" element={<SystemUser />} />
         <Route path="system/role/*" element={<SystemRole />} />
         <Route path="system/menu/*" element={<SystemMenu />} />
@@ -145,6 +162,7 @@ const App: React.FC = () => {
         <Route path="system/monitor/online" element={<SystemMonitorOnline />} />
         <Route path="system/monitor/cache" element={<SystemMonitorCache />} />
         <Route path="system/monitor/plugin" element={<SystemMonitorPlugin />} />
+        <Route path="system/monitor/notice" element={<SystemMonitorNotice />} />
         <Route path="system/task" element={<SystemTask />} />
         <Route path="system/dbInit" element={<SystemDbInit />} />
         <Route path="system/dept" element={<SystemDept />} />
@@ -157,16 +175,12 @@ const App: React.FC = () => {
         <Route path="limits/frontEnd/page" element={<LimitsFrontEnd />} />
         <Route path="property/attribute" element={<PropertyAttribute />} />
         <Route path="property/dossier" element={<PropertyDossier />} />
-        
-        {/* 个人中心 */}
+
         <Route path="personal" element={<Personal />} />
       </Route>
-      
-      {/* 错误页面 */}
+
       <Route path="/404" element={<Page404 />} />
       <Route path="/401" element={<Page401 />} />
-      
-      {/* 404 重定向 */}
       <Route path="*" element={<Navigate to="/404" replace />} />
     </Routes>
   );

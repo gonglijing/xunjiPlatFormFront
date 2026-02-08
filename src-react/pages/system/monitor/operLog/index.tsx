@@ -4,6 +4,24 @@ import { SyncOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import sysApi from '../../../../api/system';
 import './index.css';
 
+const getListAndTotal = (res: any) => {
+  const list = res?.list || res?.data?.list || res?.Data || [];
+  const total = res?.total ?? res?.data?.total ?? res?.Total ?? list.length;
+  return { list, total };
+};
+
+const formatJsonText = (value: any) => {
+  if (value === undefined || value === null || value === '') return '-';
+  if (typeof value === 'string') {
+    try {
+      return JSON.stringify(JSON.parse(value), null, 2);
+    } catch {
+      return value;
+    }
+  }
+  return JSON.stringify(value, null, 2);
+};
+
 interface OperLogItem {
   operId: number;
   title: string;
@@ -16,6 +34,10 @@ interface OperLogItem {
   operTime: string;
   status: number;
   msg: string;
+  requestMethod?: string;
+  method?: string;
+  operParam?: string;
+  jsonResult?: string;
 }
 
 const OperLogList: React.FC = () => {
@@ -29,6 +51,7 @@ const OperLogList: React.FC = () => {
     operName: '',
     businessType: undefined as number | undefined,
     status: -1,
+    dateRange: [] as string[],
   });
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [detailVisible, setDetailVisible] = useState(false);
@@ -37,9 +60,10 @@ const OperLogList: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res: any = await sysApi.system.monitor.operLog(params);
-      setData(res.list || []);
-      setTotal(res.total || 0);
+      const res: any = await sysApi.oper.getList(params);
+      const { list, total: listTotal } = getListAndTotal(res);
+      setData(list);
+      setTotal(listTotal);
     } catch (error) {
       message.error('获取操作日志失败');
     } finally {
@@ -52,26 +76,45 @@ const OperLogList: React.FC = () => {
   }, [params]);
 
   const handleSearch = () => {
-    setParams({ ...params, pageNum: 1 });
+    setParams((prev) => ({ ...prev, pageNum: 1 }));
   };
 
   const handleReset = () => {
-    setParams({ pageNum: 1, pageSize: 10, title: '', operName: '', businessType: undefined, status: -1 });
+    setParams({ pageNum: 1, pageSize: 10, title: '', operName: '', businessType: undefined, status: -1, dateRange: [] });
   };
 
   const handleDelete = async (ids: number[]) => {
+    if (!ids.length) {
+      message.error('请选择要删除的日志');
+      return;
+    }
     Modal.confirm({
       title: '确认删除',
       content: `确定要删除选中的 ${ids.length} 条日志吗?`,
       onOk: async () => {
-        message.info('删除功能开发中');
+        try {
+          await sysApi.oper.del(ids);
+          message.success('删除成功');
+          setSelectedIds([]);
+          fetchData();
+        } catch (error) {
+          message.error('删除失败');
+        }
       },
     });
   };
 
-  const handleDetail = (record: OperLogItem) => {
-    setSelectedItem(record);
+  const handleDetail = async (record: OperLogItem) => {
     setDetailVisible(true);
+    setSelectedItem(record);
+
+    try {
+      const res: any = await sysApi.oper.detail(record.operId);
+      const detail = res?.data || res || {};
+      setSelectedItem({ ...record, ...detail });
+    } catch (error) {
+      // ignore detail fetch failure and show row-level data
+    }
   };
 
   const getBusinessType = (type: number) => {
@@ -123,8 +166,8 @@ const OperLogList: React.FC = () => {
       key: 'status',
       width: 100,
       render: (status: number) => (
-        <Tag color={status === 1 ? 'success' : 'error'}>
-          {status === 1 ? '正常' : '异常'}
+        <Tag color={status ? 'success' : 'error'}>
+          {status ? '正常' : '异常'}
         </Tag>
       ),
     },
@@ -151,14 +194,14 @@ const OperLogList: React.FC = () => {
             placeholder="系统模块"
             style={{ width: 200 }}
             value={params.title}
-            onChange={(e) => setParams({ ...params, title: e.target.value })}
+            onChange={(e) => setParams((prev) => ({ ...prev, title: e.target.value }))}
             onPressEnter={handleSearch}
           />
           <Input
             placeholder="操作人员"
             style={{ width: 150 }}
             value={params.operName}
-            onChange={(e) => setParams({ ...params, operName: e.target.value })}
+            onChange={(e) => setParams((prev) => ({ ...prev, operName: e.target.value }))}
             onPressEnter={handleSearch}
           />
           <Select
@@ -166,7 +209,7 @@ const OperLogList: React.FC = () => {
             style={{ width: 120 }}
             allowClear
             value={params.businessType}
-            onChange={(value) => setParams({ ...params, businessType: value })}
+            onChange={(value) => setParams((prev) => ({ ...prev, businessType: value }))}
           >
             <Select.Option value={0}>其他</Select.Option>
             <Select.Option value={1}>新增</Select.Option>
@@ -177,11 +220,15 @@ const OperLogList: React.FC = () => {
             placeholder="状态"
             style={{ width: 100 }}
             value={params.status === -1 ? undefined : params.status}
-            onChange={(value) => setParams({ ...params, status: value ?? -1 })}
+            onChange={(value) => setParams((prev) => ({ ...prev, status: value ?? -1 }))}
           >
             <Select.Option value={1}>正常</Select.Option>
             <Select.Option value={0}>异常</Select.Option>
           </Select>
+          <DatePicker.RangePicker
+            onChange={(_dates, dateStrings) => setParams((prev) => ({ ...prev, dateRange: dateStrings as string[] }))}
+            style={{ width: 250 }}
+          />
           <Button type="primary" icon={<SyncOutlined />} onClick={handleSearch}>
             查询
           </Button>
@@ -206,28 +253,34 @@ const OperLogList: React.FC = () => {
             total,
             current: params.pageNum,
             pageSize: params.pageSize,
-            onChange: (page, pageSize) => setParams({ ...params, pageNum: page, pageSize }),
+            onChange: (page, pageSize) => setParams((prev) => ({ ...prev, pageNum: page, pageSize })),
           }}
         />
       </Card>
 
       <Modal
-        title="操作详情"
+        title={`${selectedItem?.title || '操作日志'}详情`}
         open={detailVisible}
         onCancel={() => setDetailVisible(false)}
         footer={null}
-        width={600}
+        width={700}
       >
         {selectedItem && (
           <div>
-            <p><strong>系统模块：</strong>{selectedItem.title}</p>
-            <p><strong>请求方式：</strong>-</p>
-            <p><strong>操作方法：</strong>-</p>
+            <p><strong>系统模块：</strong>{selectedItem.title || '-'}</p>
+            <p><strong>请求方式：</strong>{selectedItem.requestMethod || '-'}</p>
+            <p><strong>方法名称：</strong>{selectedItem.method || '-'}</p>
+            <p><strong>操作地点：</strong>{selectedItem.operLocation || '-'}</p>
             <p><strong>请求参数：</strong></p>
-            <pre style={{ background: '#f5f5f5', padding: 10, overflow: 'auto', maxHeight: 200 }}>
-              {selectedItem.msg || '无'}
+            <pre style={{ background: '#f5f5f5', padding: 10, overflow: 'auto', maxHeight: 160 }}>
+              {formatJsonText(selectedItem.operParam)}
             </pre>
-            <p><strong>返回参数：</strong>-</p>
+            <p><strong>返回参数：</strong></p>
+            <pre style={{ background: '#f5f5f5', padding: 10, overflow: 'auto', maxHeight: 160 }}>
+              {formatJsonText(selectedItem.jsonResult)}
+            </pre>
+            <p><strong>操作状态：</strong>{selectedItem.status ? '正常' : '异常'}</p>
+            <p><strong>操作时间：</strong>{selectedItem.operTime || '-'}</p>
           </div>
         )}
       </Modal>

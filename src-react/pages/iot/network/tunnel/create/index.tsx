@@ -7,6 +7,42 @@ import './index.css';
 
 const { TextArea } = Input;
 
+const toBoolFlag = (value: any) => value === true || value === 1 || value === '1';
+const toNumberFlag = (value: any) => (toBoolFlag(value) ? 1 : 0);
+
+const parityToForm = (value: any) => {
+  if (value === 'odd' || value === 1 || value === '1') return 'odd';
+  if (value === 'even' || value === 2 || value === '2') return 'even';
+  return 'none';
+};
+
+const parityToSubmit = (value: any) => {
+  if (value === 'odd' || value === 1 || value === '1') return 1;
+  if (value === 'even' || value === 2 || value === '2') return 2;
+  return 0;
+};
+
+const normalizeProtocolOptionsForForm = (value: any) => {
+  if (typeof value === 'string') return value;
+  if (value === undefined || value === null || value === '') return '';
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+};
+
+const normalizeProtocolOptionsForSubmit = (value: any) => {
+  if (typeof value !== 'string') return value ?? {};
+  const trimmed = value.trim();
+  if (!trimmed) return {};
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    throw new Error('PROTOCOL_JSON_INVALID');
+  }
+};
+
 const TunnelCreate: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -21,9 +57,8 @@ const TunnelCreate: React.FC = () => {
     if (isEdit) {
       fetchDetail();
     } else {
-      // Set default values
       form.setFieldsValue({
-        status: 0,
+        status: false,
         types: 'tcp-client',
         serial: {
           baud_rate: 9600,
@@ -33,6 +68,7 @@ const TunnelCreate: React.FC = () => {
         },
         heartbeat: { enable: false },
         retry: { enable: false, timeout: 5, maximum: 3 },
+        protocol: { options: '' },
       });
     }
   }, [id, form]);
@@ -40,7 +76,7 @@ const TunnelCreate: React.FC = () => {
   const fetchServers = async () => {
     try {
       const res: any = await networkApi.server.getList({ status: 1 });
-      setServerList(res.list || []);
+      setServerList(res?.list || res?.Info || res?.data || []);
     } catch (error) {
       console.error('获取服务器列表失败');
     }
@@ -49,9 +85,31 @@ const TunnelCreate: React.FC = () => {
   const fetchDetail = async () => {
     try {
       const res: any = await networkApi.tunnel.detail(Number(id));
-      if (res) {
-        form.setFieldsValue(res);
-      }
+      if (!res) return;
+
+      const protocolConfig = res.protocol || res.protoccol || {};
+      form.setFieldsValue({
+        ...res,
+        status: toBoolFlag(res.status),
+        serial: res?.serial
+          ? {
+              ...res.serial,
+              parity: parityToForm(res.serial.parity),
+            }
+          : undefined,
+        heartbeat: {
+          ...(res.heartbeat || {}),
+          enable: toBoolFlag(res?.heartbeat?.enable),
+        },
+        retry: {
+          ...(res.retry || {}),
+          enable: toBoolFlag(res?.retry?.enable),
+        },
+        protocol: {
+          ...protocolConfig,
+          options: normalizeProtocolOptionsForForm(protocolConfig.options),
+        },
+      });
     } catch (error) {
       message.error('获取通道信息失败');
     }
@@ -60,18 +118,54 @@ const TunnelCreate: React.FC = () => {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      setLoading(true);
+      const protocolOptions = normalizeProtocolOptionsForSubmit(values?.protocol?.options);
+      const protocolPayload = values?.protocol
+        ? {
+            ...values.protocol,
+            options: protocolOptions,
+          }
+        : values.protocol;
 
+      const payload = {
+        ...values,
+        status: toNumberFlag(values.status),
+        serial: values?.serial
+          ? {
+              ...values.serial,
+              parity: parityToSubmit(values.serial.parity),
+            }
+          : values.serial,
+        heartbeat: values?.heartbeat
+          ? {
+              ...values.heartbeat,
+              enable: toNumberFlag(values.heartbeat.enable),
+            }
+          : values.heartbeat,
+        retry: values?.retry
+          ? {
+              ...values.retry,
+              enable: toNumberFlag(values.retry.enable),
+            }
+          : values.retry,
+        protocol: protocolPayload,
+        protoccol: protocolPayload,
+      };
+
+      setLoading(true);
       if (isEdit) {
-        await networkApi.tunnel.edit({ id: Number(id), ...values });
+        await networkApi.tunnel.edit({ id: Number(id), ...payload });
         message.success('编辑成功');
       } else {
-        await networkApi.tunnel.add(values);
+        await networkApi.tunnel.add(payload);
         message.success('创建成功');
       }
       navigate('/network/tunnel');
     } catch (error: any) {
-      if (error.errorFields) return;
+      if (error?.errorFields) return;
+      if (error?.message === 'PROTOCOL_JSON_INVALID') {
+        message.error('协议参数请填写合法 JSON');
+        return;
+      }
       message.error(isEdit ? '编辑失败' : '创建失败');
     } finally {
       setLoading(false);
@@ -96,7 +190,7 @@ const TunnelCreate: React.FC = () => {
           </Space>
         }
       >
-        <Form form={form} layout="vertical" initialValues={{ types: 'tcp-client', status: 0 }}>
+        <Form form={form} layout="vertical" initialValues={{ types: 'tcp-client', status: false }}>
           <Tabs activeKey={activeTab} onChange={setActiveTab}>
             <Tabs.TabPane tab="基本信息" key="basic">
               <Form.Item name="name" label="名称" rules={[{ required: true }]}>
@@ -128,7 +222,7 @@ const TunnelCreate: React.FC = () => {
                 </Form.Item>
               )}
 
-              <Form.Item name="status" label="启用">
+              <Form.Item name="status" label="启用" valuePropName="checked">
                 <Switch checkedChildren="启用" unCheckedChildren="禁用" />
               </Form.Item>
             </Tabs.TabPane>

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Tree, Table, Button, Space, Input, message } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Card, Tree, Table, Button, Space, Input, message, Modal } from 'antd';
+import type { TableColumnsType } from 'antd';
 import { PlusOutlined, SyncOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import deviceApi from '../../../../api/device';
 import EditAttribute from './component/editAttribute';
@@ -13,12 +14,35 @@ interface AttributeItem {
   createdAt: string;
 }
 
+interface QueryParams {
+  pageNum: number;
+  pageSize: number;
+  keyWord: string;
+  categoryId: string;
+}
+
+type AnyRecord = Record<string, unknown>;
+
+const asRecord = (value: unknown): AnyRecord => {
+  if (typeof value === 'object' && value !== null) {
+    return value as AnyRecord;
+  }
+  return {};
+};
+
+const toList = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+
+const toNumber = (value: unknown, fallback = 0): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
 const AttributeList: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [treeData, setTreeData] = useState<any[]>([]);
+  const [treeData, setTreeData] = useState<AnyRecord[]>([]);
   const [tableData, setTableData] = useState<AttributeItem[]>([]);
   const [total, setTotal] = useState(0);
-  const [params, setParams] = useState({
+  const [params, setParams] = useState<QueryParams>({
     pageNum: 1,
     pageSize: 10,
     keyWord: '',
@@ -30,20 +54,31 @@ const AttributeList: React.FC = () => {
 
   const fetchTreeData = async () => {
     try {
-      const res: any = await deviceApi.dev_asset_metadata.getList({});
-      setTreeData(res.Data || []);
-    } catch (error) {
-      console.error('获取分类树失败');
+      const res = await deviceApi.dev_asset_metadata.getList({});
+      const resRecord = asRecord(res);
+      const rawPayload = resRecord.data ?? res;
+      const payload = asRecord(rawPayload);
+      const list = resRecord.Data ?? payload.Data ?? payload.list ?? rawPayload;
+
+      setTreeData(toList<AnyRecord>(list));
+    } catch {
+      message.error('获取分类树失败');
     }
   };
 
   const fetchTableData = async () => {
     setLoading(true);
     try {
-      const res: any = await deviceApi.dev_asset_metadata.getList(params);
-      setTableData(res.Data || []);
-      setTotal(res.total || 0);
-    } catch (error) {
+      const res = await deviceApi.dev_asset_metadata.getList(params);
+      const resRecord = asRecord(res);
+      const rawPayload = resRecord.data ?? res;
+      const payload = asRecord(rawPayload);
+      const list = resRecord.Data ?? payload.Data ?? payload.list ?? rawPayload;
+      const count = resRecord.total ?? payload.total ?? payload.Total ?? 0;
+
+      setTableData(toList<AttributeItem>(list));
+      setTotal(toNumber(count));
+    } catch {
       message.error('获取属性列表失败');
     } finally {
       setLoading(false);
@@ -55,10 +90,11 @@ const AttributeList: React.FC = () => {
     fetchTableData();
   }, [params]);
 
-  const handleTreeSelect = (selectedKeys: React.Key[]) => {
-    setSelectedKeys(selectedKeys as string[]);
-    if (selectedKeys.length > 0) {
-      setParams({ ...params, categoryId: selectedKeys[0] as string });
+  const handleTreeSelect = (nextSelectedKeys: React.Key[]) => {
+    const keys = nextSelectedKeys.map((item) => String(item));
+    setSelectedKeys(keys);
+    if (keys.length > 0) {
+      setParams({ ...params, categoryId: keys[0] });
     }
   };
 
@@ -81,10 +117,22 @@ const AttributeList: React.FC = () => {
   };
 
   const handleDelete = (record: AttributeItem) => {
-    message.info('删除功能开发中');
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定要删除属性 "${record.name}" 吗?`,
+      onOk: async () => {
+        try {
+          await deviceApi.dev_asset_metadata.delete({ ids: record.id });
+          message.success('删除成功');
+          fetchTableData();
+        } catch {
+          message.error('删除失败');
+        }
+      },
+    });
   };
 
-  const columns = [
+  const columns: TableColumnsType<AttributeItem> = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
     { title: '字段名称', dataIndex: 'name', key: 'name', width: 120 },
     { title: '字段标题', dataIndex: 'title', key: 'title', width: 120 },
@@ -94,7 +142,7 @@ const AttributeList: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 150,
-      render: (_: any, record: AttributeItem) => (
+      render: (_: unknown, record: AttributeItem) => (
         <Space>
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
             编辑

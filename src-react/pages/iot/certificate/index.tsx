@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Space, Input, Tag, Modal, Form, Select, Upload, message, Switch } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Card, Table, Button, Space, Input, Modal, Form, Select, Upload, message, Switch } from 'antd';
+import type { TableColumnsType, UploadProps } from 'antd';
 import { PlusOutlined, SyncOutlined, EditOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons';
 import certificateApi from '../../../api/certificate';
 import './index.css';
@@ -11,13 +12,39 @@ interface CertificateItem {
   description: string;
   status: number;
   createdAt: string;
+  fileContent?: string;
+  publicKeyContent?: string;
+  privateKeyContent?: string;
 }
+
+interface QueryParams {
+  pageNum: number;
+  pageSize: number;
+  name: string;
+  status: number;
+}
+
+type AnyRecord = Record<string, unknown>;
+
+const asRecord = (value: unknown): AnyRecord => {
+  if (typeof value === 'object' && value !== null) {
+    return value as AnyRecord;
+  }
+  return {};
+};
+
+const toList = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+
+const toNumber = (value: unknown, fallback = 0): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
 
 const CertificateList: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<CertificateItem[]>([]);
   const [total, setTotal] = useState(0);
-  const [params, setParams] = useState({
+  const [params, setParams] = useState<QueryParams>({
     pageNum: 1,
     pageSize: 10,
     name: '',
@@ -29,10 +56,16 @@ const CertificateList: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res: any = await certificateApi.certificate.getList(params);
-      setData(res.Info || []);
-      setTotal(res.total || 0);
-    } catch (error) {
+      const res = await certificateApi.certificate.getList(params);
+      const resRecord = asRecord(res);
+      const rawPayload = resRecord.data ?? res;
+      const payload = asRecord(rawPayload);
+      const list = resRecord.Info ?? payload.Info ?? payload.list ?? payload.Data ?? rawPayload;
+      const count = payload.total ?? payload.Total ?? resRecord.total ?? 0;
+
+      setData(toList<CertificateItem>(list));
+      setTotal(toNumber(count));
+    } catch {
       message.error('获取证书列表失败');
     } finally {
       setLoading(false);
@@ -65,7 +98,7 @@ const CertificateList: React.FC = () => {
           await certificateApi.certificate.del(id);
           message.success('删除成功');
           fetchData();
-        } catch (error) {
+        } catch {
           message.error('删除失败');
         }
       },
@@ -78,31 +111,36 @@ const CertificateList: React.FC = () => {
       await certificateApi.certificate.editStatus({ id: record.id, status: newStatus });
       message.success('状态修改成功');
       fetchData();
-    } catch (error) {
+    } catch {
       message.error('状态修改失败');
     }
   };
 
-  const columns = [
+  const columns: TableColumnsType<CertificateItem> = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
     { title: '证书名称', dataIndex: 'name', key: 'name' },
-    { title: '证书标准', dataIndex: 'standard', key: 'standard', render: (val: string) => {
-      const dict: Record<string, string> = {
-        '1': 'RFC',
-        '2': 'PKCS',
-        '3': 'X.509',
-      };
-      return dict[val] || val;
-    }},
+    {
+      title: '证书标准',
+      dataIndex: 'standard',
+      key: 'standard',
+      render: (val: string) => {
+        const dict: Record<string, string> = {
+          '1': 'RFC',
+          '2': 'PKCS',
+          '3': 'X.509',
+        };
+        return dict[val] || val;
+      },
+    },
     { title: '说明', dataIndex: 'description', key: 'description', ellipsis: true },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (status: number, record: CertificateItem) => (
+      render: (rowStatus: number, record: CertificateItem) => (
         <Switch
-          checked={status === 1}
+          checked={rowStatus === 1}
           onChange={() => handleStatusChange(record)}
           checkedChildren="启用"
           unCheckedChildren="禁用"
@@ -114,7 +152,7 @@ const CertificateList: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 140,
-      render: (_: any, record: CertificateItem) => (
+      render: (_: unknown, record: CertificateItem) => (
         <Space>
           <Button type="link" icon={<EditOutlined />} onClick={() => showEdit(record)}>
             编辑
@@ -131,11 +169,11 @@ const CertificateList: React.FC = () => {
     <div className="certificate-container">
       <Card
         title="证书管理"
-        extra={
+        extra={(
           <Button type="primary" icon={<PlusOutlined />} onClick={() => showEdit()}>
             新增证书
           </Button>
-        }
+        )}
       >
         <Space style={{ marginBottom: 16 }} wrap>
           <Input
@@ -175,12 +213,16 @@ const CertificateList: React.FC = () => {
         />
       </Card>
 
-      <EditModal visible={editVisible} data={selectedItem} onClose={() => setEditVisible(false)} onSuccess={fetchData} />
+      <EditModal
+        visible={editVisible}
+        data={selectedItem}
+        onClose={() => setEditVisible(false)}
+        onSuccess={fetchData}
+      />
     </div>
   );
 };
 
-// 编辑弹窗组件
 interface EditModalProps {
   visible: boolean;
   data: CertificateItem | null;
@@ -211,27 +253,30 @@ const EditModal: React.FC<EditModalProps> = ({ visible, data, onClose, onSuccess
       }
       message.success(data?.id ? '编辑成功' : '新增成功');
       onSuccess();
-    } catch (error) {
+      onClose();
+    } catch {
       message.error('操作失败');
     } finally {
       setLoading(false);
     }
   };
 
-  const beforePublicUpload = (file: any) => {
+  const beforePublicUpload: NonNullable<UploadProps['beforeUpload']> = (file) => {
     const reader = new FileReader();
     reader.readAsText(file, 'UTF-8');
-    reader.onload = (e: any) => {
-      form.setFieldsValue({ publicKeyContent: e.target.result });
+    reader.onload = (event) => {
+      const result = event.target?.result;
+      form.setFieldsValue({ publicKeyContent: typeof result === 'string' ? result : '' });
     };
     return false;
   };
 
-  const beforePrivateUpload = (file: any) => {
+  const beforePrivateUpload: NonNullable<UploadProps['beforeUpload']> = (file) => {
     const reader = new FileReader();
     reader.readAsText(file, 'UTF-8');
-    reader.onload = (e: any) => {
-      form.setFieldsValue({ privateKeyContent: e.target.result });
+    reader.onload = (event) => {
+      const result = event.target?.result;
+      form.setFieldsValue({ privateKeyContent: typeof result === 'string' ? result : '' });
     };
     return false;
   };
@@ -246,26 +291,26 @@ const EditModal: React.FC<EditModalProps> = ({ visible, data, onClose, onSuccess
       width={600}
     >
       <Form form={form} labelWidth={100} labelPosition="left">
-        <Form.Item name="standard" label="证书标准" rules={[{ required: true }]}>
+        <Form.Item name="standard" label="证书标准" rules={[{ required: true }]}> 
           <Select placeholder="请选择证书标准">
             <Select.Option value="1">RFC</Select.Option>
             <Select.Option value="2">PKCS</Select.Option>
             <Select.Option value="3">X.509</Select.Option>
           </Select>
         </Form.Item>
-        <Form.Item name="name" label="证书名称" rules={[{ required: true }]}>
+        <Form.Item name="name" label="证书名称" rules={[{ required: true }]}> 
           <Input placeholder="请输入证书名称" />
         </Form.Item>
-        <Form.Item name="fileContent" label="证书文件" rules={[{ required: true }]}>
+        <Form.Item name="fileContent" label="证书文件" rules={[{ required: true }]}> 
           <Input placeholder="证书文件路径" disabled />
         </Form.Item>
-        <Form.Item name="publicKeyContent" label="证书公钥" rules={[{ required: true }]}>
+        <Form.Item name="publicKeyContent" label="证书公钥" rules={[{ required: true }]}> 
           <Input.TextArea rows={4} placeholder="证书公钥内容" disabled />
           <Upload beforeUpload={beforePublicUpload} showUploadList={false}>
             <Button icon={<UploadOutlined />}>上传公钥</Button>
           </Upload>
         </Form.Item>
-        <Form.Item name="privateKeyContent" label="证书私钥" rules={[{ required: true }]}>
+        <Form.Item name="privateKeyContent" label="证书私钥" rules={[{ required: true }]}> 
           <Input.TextArea rows={4} placeholder="证书私钥内容" disabled />
           <Upload beforeUpload={beforePrivateUpload} showUploadList={false}>
             <Button icon={<UploadOutlined />}>上传私钥</Button>

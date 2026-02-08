@@ -8,6 +8,7 @@ import { setTheme } from './store/slice/appSlice';
 import App from './App';
 import './styles/index.css';
 import sysApi from './api/system';
+import { applyThemeToDocument, ThemeMode } from './utils/theme';
 
 // 初始化系统配置
 const initSystemConfig = () => {
@@ -29,10 +30,9 @@ const initSystemConfig = () => {
 initSystemConfig();
 
 const initTheme = () => {
-  const savedTheme = (localStorage.getItem('xunji_theme') as 'light' | 'dark') || 'light';
+  const savedTheme = (localStorage.getItem('xunji_theme') as ThemeMode) || 'light';
   store.dispatch(setTheme(savedTheme));
-  document.documentElement.setAttribute('data-theme', savedTheme === 'dark' ? 'dark' : '');
-  document.body.className = savedTheme === 'dark' ? 'dark-theme' : '';
+  applyThemeToDocument(savedTheme);
 };
 
 initTheme();

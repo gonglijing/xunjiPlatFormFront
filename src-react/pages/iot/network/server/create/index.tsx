@@ -8,6 +8,30 @@ import './index.css';
 
 const { TextArea } = Input;
 
+const toBoolFlag = (value: any) => value === true || value === 1 || value === '1';
+const toNumberFlag = (value: any) => (toBoolFlag(value) ? 1 : 0);
+
+const normalizeProtocolOptionsForForm = (value: any) => {
+  if (typeof value === 'string') return value;
+  if (value === undefined || value === null || value === '') return '';
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+};
+
+const normalizeProtocolOptionsForSubmit = (value: any) => {
+  if (typeof value !== 'string') return value ?? {};
+  const trimmed = value.trim();
+  if (!trimmed) return {};
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    throw new Error('PROTOCOL_JSON_INVALID');
+  }
+};
+
 const ServerCreate: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -24,7 +48,21 @@ const ServerCreate: React.FC = () => {
         try {
           const res: any = await networkApi.server.detail(Number(id));
           const formData = res || {};
-          form.setFieldsValue(formData);
+          const protocolConfig = formData.protocol || {};
+
+          form.setFieldsValue({
+            ...formData,
+            status: toBoolFlag(formData.status),
+            isTls: toBoolFlag(formData.isTls),
+            heartbeat: {
+              ...(formData.heartbeat || {}),
+              enable: toBoolFlag(formData?.heartbeat?.enable),
+            },
+            protocol: {
+              ...protocolConfig,
+              options: normalizeProtocolOptionsForForm(protocolConfig.options),
+            },
+          });
         } catch (error) {
           message.error('获取服务器信息失败');
         }
@@ -38,7 +76,7 @@ const ServerCreate: React.FC = () => {
   const fetchCertificates = async () => {
     try {
       const res: any = await systemApi.certificate.getList({ status: 1 });
-      setCertificateList(res.Info || []);
+      setCertificateList(res?.Info || res?.list || res?.data || []);
     } catch (error) {
       console.error('获取证书列表失败');
     }
@@ -47,18 +85,41 @@ const ServerCreate: React.FC = () => {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      setLoading(true);
+      const protocolOptions = normalizeProtocolOptionsForSubmit(values?.protocol?.options);
 
+      const payload = {
+        ...values,
+        status: toNumberFlag(values.status),
+        isTls: toNumberFlag(values.isTls),
+        heartbeat: values?.heartbeat
+          ? {
+              ...values.heartbeat,
+              enable: toNumberFlag(values.heartbeat.enable),
+            }
+          : values.heartbeat,
+        protocol: values?.protocol
+          ? {
+              ...values.protocol,
+              options: protocolOptions,
+            }
+          : values.protocol,
+      };
+
+      setLoading(true);
       if (isEdit) {
-        await networkApi.server.edit({ id: Number(id), ...values });
+        await networkApi.server.edit({ id: Number(id), ...payload });
         message.success('编辑成功');
       } else {
-        await networkApi.server.add(values);
+        await networkApi.server.add(payload);
         message.success('创建成功');
       }
       navigate('/network/server');
     } catch (error: any) {
-      if (error.errorFields) return;
+      if (error?.errorFields) return;
+      if (error?.message === 'PROTOCOL_JSON_INVALID') {
+        message.error('协议参数请填写合法 JSON');
+        return;
+      }
       message.error(isEdit ? '编辑失败' : '创建失败');
     } finally {
       setLoading(false);
@@ -83,7 +144,17 @@ const ServerCreate: React.FC = () => {
           </Space>
         }
       >
-        <Form form={form} layout="vertical" initialValues={{ types: 'tcp', status: 0, isTls: 0 }}>
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={{
+            types: 'tcp',
+            status: false,
+            isTls: false,
+            heartbeat: { enable: false },
+            protocol: { options: '' },
+          }}
+        >
           <Tabs activeKey={activeTab} onChange={setActiveTab}>
             <Tabs.TabPane tab="基本信息" key="basic">
               <Form.Item name="name" label="名称" rules={[{ required: true }]}>
@@ -122,17 +193,15 @@ const ServerCreate: React.FC = () => {
               )}
 
               {isTls && serverType === 'mqtt_server' && (
-                <>
-                  <Form.Item name="authType" label="接入方式">
-                    <Select placeholder="选择接入方式">
-                      <Select.Option value={1}>Basic</Select.Option>
-                      <Select.Option value={2}>AccessToken</Select.Option>
-                    </Select>
-                  </Form.Item>
-                </>
+                <Form.Item name="authType" label="接入方式">
+                  <Select placeholder="选择接入方式">
+                    <Select.Option value={1}>Basic</Select.Option>
+                    <Select.Option value={2}>AccessToken</Select.Option>
+                  </Select>
+                </Form.Item>
               )}
 
-              <Form.Item name="status" label="启用">
+              <Form.Item name="status" label="启用" valuePropName="checked">
                 <Switch checkedChildren="启用" unCheckedChildren="禁用" />
               </Form.Item>
             </Tabs.TabPane>

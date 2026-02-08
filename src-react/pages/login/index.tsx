@@ -9,6 +9,7 @@ import { setTheme } from '../../store/slice/appSlice';
 import sysApi from '../../api/system';
 import { encrypt } from '../../utils/rsa';
 import { normalizeAssetUrl } from '../../utils/url';
+import { applyThemeToDocument } from '../../utils/theme';
 import './index.css';
 
 const Login: React.FC = () => {
@@ -36,8 +37,7 @@ const Login: React.FC = () => {
   const toggleDarkMode = (checked: boolean) => {
     const theme = checked ? 'dark' : 'light';
     dispatch(setTheme(theme));
-    document.documentElement.setAttribute('data-theme', checked ? 'dark' : '');
-    document.body.className = checked ? 'dark-theme' : '';
+    applyThemeToDocument(theme);
   };
 
   // 格式化时间问候语

@@ -1,53 +1,145 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Space, Input, Modal, Form, message, Tag } from 'antd';
-import { PlusOutlined, SyncOutlined } from '@ant-design/icons';
+import React, { useEffect, useState } from 'react';
+import { Card, Table, Button, Space, Input, message, Tag } from 'antd';
+import type { TableColumnsType } from 'antd';
+import { SyncOutlined } from '@ant-design/icons';
 import alarmApi from '../../../api/alarm';
 import './index.css';
+
 const { Search } = Input;
+
+interface AlarmItem {
+  id: number;
+  type: number;
+  ruleName: string;
+  productKey: string;
+  deviceKey: string;
+  status: number;
+  createdAt: string;
+  alarmLevel?: { name?: string };
+}
+
+type AnyRecord = Record<string, unknown>;
+
+const asRecord = (value: unknown): AnyRecord => {
+  if (typeof value === 'object' && value !== null) {
+    return value as AnyRecord;
+  }
+  return {};
+};
+
+const toList = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+
+const toNumber = (value: unknown, fallback = 0): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
 const AlarmList: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<any[]>([]);
-  const [form] = Form.useForm();
-  
+  const [data, setData] = useState<AlarmItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [params, setParams] = useState({
+    pageNum: 1,
+    pageSize: 10,
+    keyWord: '',
+  });
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 模拟数据
-      setData([
-        { id: 1, name: '温度过高告警', deviceName: '设备001', level: 'high', status: 'triggered', createdAt: '2024-01-01 10:30' },
-        { id: 2, name: '设备离线告警', deviceName: '设备002', level: 'medium', status: 'resolved', createdAt: '2024-01-01 10:25' },
-      ]);
-    } catch (error) { message.error('获取告警列表失败'); }
-    finally { setLoading(false); }
+      const res = await alarmApi.log.getList(params);
+      const rawPayload = asRecord(res).data ?? res;
+      const payload = asRecord(rawPayload);
+      const list = payload.list ?? payload.Data ?? rawPayload;
+      const count = payload.total ?? payload.Total ?? 0;
+
+      setData(toList<AlarmItem>(list));
+      setTotal(toNumber(count));
+    } catch {
+      message.error('获取告警列表失败');
+    } finally {
+      setLoading(false);
+    }
   };
-  
-  useEffect(() => { fetchData(); }, []);
-  
-  const columns = [
-    { title: '告警名称', dataIndex: 'name', key: 'name' },
-    { title: '设备名称', dataIndex: 'deviceName', key: 'deviceName' },
-    { title: '告警级别', dataIndex: 'level', key: 'level', render: (l: string) => (
-      <Tag color={l === 'high' ? 'red' : l === 'medium' ? 'orange' : 'blue'}>
-        {l === 'high' ? '严重' : l === 'medium' ? '中等' : '一般'}
-      </Tag>
-    )},
-    { title: '状态', dataIndex: 'status', key: 'status', render: (s: string) => (
-      <Tag color={s === 'triggered' ? 'red' : 'green'}>{s === 'triggered' ? '已触发' : '已解除'}</Tag>
-    )},
-    { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt' },
+
+  useEffect(() => {
+    fetchData();
+  }, [params]);
+
+  const handleSearch = (value?: string) => {
+    setParams((prev) => ({
+      ...prev,
+      pageNum: 1,
+      keyWord: value ?? prev.keyWord,
+    }));
+  };
+
+  const columns: TableColumnsType<AlarmItem> = [
+    {
+      title: '告警类型',
+      dataIndex: 'type',
+      key: 'type',
+      width: 110,
+      render: (type: number) => (type === 1 ? '规则告警' : '设备自主告警'),
+    },
+    { title: '规则名称', dataIndex: 'ruleName', key: 'ruleName', ellipsis: true },
+    { title: '产品标识', dataIndex: 'productKey', key: 'productKey', width: 150, ellipsis: true },
+    { title: '设备标识', dataIndex: 'deviceKey', key: 'deviceKey', width: 150, ellipsis: true },
+    {
+      title: '规则级别',
+      dataIndex: ['alarmLevel', 'name'],
+      key: 'alarmLevel',
+      width: 120,
+      render: (name?: string) => name || '-',
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (rowStatus: number) => (
+        <Tag color={rowStatus === 0 ? 'red' : rowStatus === 1 ? 'green' : 'default'}>
+          {rowStatus === 0 ? '未处理' : rowStatus === 1 ? '已处理' : '已忽略'}
+        </Tag>
+      ),
+    },
+    { title: '告警时间', dataIndex: 'createdAt', key: 'createdAt', width: 170 },
   ];
-  
+
   return (
     <div className="alarm-list-container">
-      <Card title="告警管理" extra={
-        <Space>
-          <Search placeholder="搜索告警" style={{ width: 200 }} />
-          <Button icon={<SyncOutlined />} onClick={fetchData}>刷新</Button>
-        </Space>
-      }>
-        <Table columns={columns} dataSource={data} rowKey="id" loading={loading} pagination={false} />
+      <Card
+        title="告警管理"
+        extra={(
+          <Space>
+            <Search
+              placeholder="搜索规则名称"
+              style={{ width: 220 }}
+              value={params.keyWord}
+              onChange={(e) => setParams({ ...params, keyWord: e.target.value })}
+              onSearch={(value) => handleSearch(value)}
+            />
+            <Button icon={<SyncOutlined />} onClick={() => fetchData()}>
+              刷新
+            </Button>
+          </Space>
+        )}
+      >
+        <Table
+          columns={columns}
+          dataSource={data}
+          rowKey="id"
+          loading={loading}
+          pagination={{
+            total,
+            current: params.pageNum,
+            pageSize: params.pageSize,
+            onChange: (page, pageSize) => setParams({ ...params, pageNum: page, pageSize }),
+          }}
+        />
       </Card>
     </div>
   );
 };
+
 export default AlarmList;

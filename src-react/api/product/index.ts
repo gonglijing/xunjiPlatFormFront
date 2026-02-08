@@ -1,12 +1,13 @@
 // 产品 API 接口
 import { get, post, put, del } from '../../utils/request';
+import { withId } from '../shared';
 
 export default {
   // 产品列表
   getList: (params?: object) => get('/product/list', params),
   
   // 产品详情
-  detail: (id: number) => get('/product/detail', { id }),
+  detail: (id: number) => get('/product/detail', withId(id)),
   
   // 添加产品
   add: (data: object) => post('/product/add', data),

@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Card, Table, Button, Space, Input, Tag, Modal, message, Switch, Popconfirm } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Card, Table, Button, Space, Input, Tag, message, Switch, Popconfirm } from 'antd';
+import type { TableColumnsType } from 'antd';
 import { PlusOutlined, SyncOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import networkApi from '../../../../api/network';
@@ -14,28 +15,54 @@ interface ServerItem {
   createdAt: string;
 }
 
+interface QueryParams {
+  pageNum: number;
+  pageSize: number;
+}
+
+type AnyRecord = Record<string, unknown>;
+
+const asRecord = (value: unknown): AnyRecord => {
+  if (typeof value === 'object' && value !== null) {
+    return value as AnyRecord;
+  }
+  return {};
+};
+
+const toList = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+
+const toNumber = (value: unknown, fallback = 0): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
 const ServerList: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<ServerItem[]>([]);
   const [total, setTotal] = useState(0);
   const [key, setKey] = useState('');
-  const [params, setParams] = useState({
+  const [params, setParams] = useState<QueryParams>({
     pageNum: 1,
     pageSize: 10,
   });
-  const childRef = useRef<any>(null);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res: any = await networkApi.server.getList({
+      const res = await networkApi.server.getList({
         ...params,
         keyWord: key,
       });
-      setData(res.list || []);
-      setTotal(res.total || 0);
-    } catch (error) {
+      const resRecord = asRecord(res);
+      const rawPayload = resRecord.data ?? res;
+      const payload = asRecord(rawPayload);
+      const list = resRecord.list ?? payload.list ?? payload.Data ?? rawPayload;
+      const count = resRecord.total ?? payload.total ?? payload.Total ?? 0;
+
+      setData(toList<ServerItem>(list));
+      setTotal(toNumber(count));
+    } catch {
       message.error('获取服务器列表失败');
     } finally {
       setLoading(false);
@@ -48,9 +75,6 @@ const ServerList: React.FC = () => {
 
   const handleSearch = () => {
     setParams({ ...params, pageNum: 1 });
-    if (childRef.current) {
-      childRef.current.fetchList();
-    }
   };
 
   const handleReset = () => {
@@ -76,7 +100,7 @@ const ServerList: React.FC = () => {
       await networkApi.server.status({ id: record.id, status: newStatus });
       message.success(newStatus ? '已启用' : '已禁用');
       fetchData();
-    } catch (error) {
+    } catch {
       message.error('状态修改失败');
     }
   };
@@ -86,22 +110,22 @@ const ServerList: React.FC = () => {
       await networkApi.server.del({ ids: [id] });
       message.success('删除成功');
       fetchData();
-    } catch (error) {
+    } catch {
       message.error('删除失败');
     }
   };
 
   const typesFormat = (types: string) => {
     const dict: Record<string, string> = {
-      'tcp': 'TCP',
-      'mqtt_server': 'MQTT Server',
-      'coap_server': 'CoAP Server',
-      'http_server': 'HTTP Server',
+      tcp: 'TCP',
+      mqtt_server: 'MQTT Server',
+      coap_server: 'CoAP Server',
+      http_server: 'HTTP Server',
     };
     return dict[types] || types;
   };
 
-  const columns = [
+  const columns: TableColumnsType<ServerItem> = [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
     { title: '名称', dataIndex: 'name', key: 'name' },
     { title: '类型', dataIndex: 'types', key: 'types', render: (types: string) => typesFormat(types) },
@@ -111,7 +135,7 @@ const ServerList: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (status: number, record: ServerItem) => (
+      render: (status: number) => (
         <Tag color={status === 1 ? 'success' : 'default'}>{status === 1 ? '启动' : '未启动'}</Tag>
       ),
     },
@@ -120,7 +144,7 @@ const ServerList: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 200,
-      render: (_: any, record: ServerItem) => (
+      render: (_: unknown, record: ServerItem) => (
         <Space>
           <Button type="link" icon={<EyeOutlined />} onClick={() => toDetail(record.id)}>
             详情
@@ -153,11 +177,11 @@ const ServerList: React.FC = () => {
     <div className="network-server-container">
       <Card
         title="网络服务器管理"
-        extra={
+        extra={(
           <Button type="primary" icon={<PlusOutlined />} onClick={toCreate}>
             新建
           </Button>
-        }
+        )}
       >
         <Space style={{ marginBottom: 16 }} wrap>
           <Input

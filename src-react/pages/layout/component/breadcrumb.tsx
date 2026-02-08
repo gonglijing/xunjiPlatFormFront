@@ -1,46 +1,26 @@
 import React from 'react';
-import { Breadcrumb, Typography } from 'antd';
+import { Breadcrumb } from 'antd';
 import { HomeOutlined } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { toCanonicalPath } from '../../../utils/routePath';
+import { resolveRouteTitle } from '../../../utils/routeMeta';
 import './breadcrumb.css';
-
-const { Text } = Typography;
-
-// 面包屑名称映射
-const breadcrumbNameMap: Record<string, string> = {
-  '/': '首页',
-  '/home': '仪表盘',
-  '/iot': 'IoT管理',
-  '/alarm': '告警管理',
-  '/device': '设备管理',
-  '/network': '网络管理',
-  '/product': '产品管理',
-  '/system': '系统管理',
-  '/system/user': '用户管理',
-  '/system/role': '角色管理',
-  '/system/menu': '菜单管理',
-  '/system/config': '系统配置',
-  '/system/dict': '字典管理',
-  '/system/assess': '评估管理',
-  '/personal': '个人中心',
-};
 
 const BreadcrumbNav: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // 生成面包屑路径
   const getBreadcrumbs = () => {
-    const paths = location.pathname.split('/').filter(Boolean);
+    const pathname = toCanonicalPath(location.pathname);
+    const paths = pathname.split('/').filter(Boolean);
     const breadcrumbs: { path: string; breadcrumbName: string }[] = [];
 
     let currentPath = '';
-    paths.forEach((path, index) => {
-      currentPath += `/${path}`;
-      const name = breadcrumbNameMap[currentPath] || path;
+    paths.forEach((segment) => {
+      currentPath += `/${segment}`;
       breadcrumbs.push({
         path: currentPath,
-        breadcrumbName: name,
+        breadcrumbName: resolveRouteTitle(currentPath, segment),
       });
     });
 

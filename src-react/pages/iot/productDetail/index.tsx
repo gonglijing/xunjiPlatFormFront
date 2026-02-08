@@ -1,11 +1,119 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Card, Descriptions, Form, Input, message, Modal, Popconfirm, Space, Table, Tabs, Tag, Upload } from 'antd';
+import {
+  Button,
+  Card,
+  Descriptions,
+  Form,
+  Input,
+  message,
+  Modal,
+  Popconfirm,
+  Space,
+  Table,
+  Tabs,
+  Tag,
+  Upload,
+} from 'antd';
+import type { TableColumnsType, UploadProps } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeftOutlined, UploadOutlined, DownloadOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import {
+  ArrowLeftOutlined,
+  UploadOutlined,
+  DownloadOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+} from '@ant-design/icons';
 import deviceApi from '../../../api/device';
 import './index.css';
 
 type ModelTabType = 'property' | 'function' | 'event' | 'tag';
+
+type AnyRecord = Record<string, unknown>;
+
+interface ProductDetailInfo extends AnyRecord {
+  key?: string;
+  productKey?: string;
+  name?: string;
+  productName?: string;
+  deviceType?: string;
+  categoryName?: string;
+  messageProtocol?: string;
+  transportProtocol?: string;
+  desc?: string;
+  status?: number | string | boolean;
+}
+
+interface ModelItem extends AnyRecord {
+  id?: number | string;
+  key?: string;
+  identifier?: string;
+  name?: string;
+  dataType?: string;
+  rw?: string;
+  type?: string;
+  async?: boolean | number;
+  desc?: string;
+}
+
+interface ModelFormValues {
+  key: string;
+  name: string;
+  dataType?: string;
+  rw?: string;
+  type?: string;
+  desc?: string;
+}
+
+const asRecord = (value: unknown): AnyRecord => {
+  if (typeof value === 'object' && value !== null) {
+    return value as AnyRecord;
+  }
+  return {};
+};
+
+const toList = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+
+const toStringValue = (value: unknown): string => {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return `${value}`;
+  return '';
+};
+
+const toBoolean = (value: unknown): boolean => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value > 0;
+  if (typeof value === 'string') return value === '1' || value.toLowerCase() === 'true';
+  return false;
+};
+
+const getCurrentTime = () => {
+  const date = new Date();
+  const year = date.getFullYear().toString();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  return `${year}${month}${day}${hours}${minutes}`;
+};
+
+const downloadBlob = (blob: Blob, fileName: string) => {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+};
+
+const getModelList = (response: unknown): ModelItem[] => {
+  const rawPayload = asRecord(response).data ?? response;
+  const payload = asRecord(rawPayload);
+  const list = payload.list ?? payload.Data ?? rawPayload;
+  return toList<ModelItem>(list);
+};
 
 const modelApiMap = {
   property: {
@@ -30,27 +138,6 @@ const modelApiMap = {
   },
 } as const;
 
-const getCurrentTime = () => {
-  const date = new Date();
-  const year = date.getFullYear().toString();
-  const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const day = date.getDate().toString().padStart(2, '0');
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  return `${year}${month}${day}${hours}${minutes}`;
-};
-
-const downloadBlob = (blob: Blob, fileName: string) => {
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
-};
-
 const ProductDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { productKey = '' } = useParams<{ productKey: string }>();
@@ -58,16 +145,18 @@ const ProductDetailPage: React.FC = () => {
   const [importing, setImporting] = useState(false);
   const [modelModalOpen, setModelModalOpen] = useState(false);
   const [modelModalType, setModelModalType] = useState<ModelTabType>('property');
-  const [editingRow, setEditingRow] = useState<any>(null);
+  const [editingRow, setEditingRow] = useState<ModelItem | null>(null);
   const [modelSaving, setModelSaving] = useState(false);
-  const [productInfo, setProductInfo] = useState<any>(null);
-  const [propertyList, setPropertyList] = useState<any[]>([]);
-  const [functionList, setFunctionList] = useState<any[]>([]);
-  const [eventList, setEventList] = useState<any[]>([]);
-  const [tagList, setTagList] = useState<any[]>([]);
-  const [modelForm] = Form.useForm();
+  const [productInfo, setProductInfo] = useState<ProductDetailInfo | null>(null);
+  const [propertyList, setPropertyList] = useState<ModelItem[]>([]);
+  const [functionList, setFunctionList] = useState<ModelItem[]>([]);
+  const [eventList, setEventList] = useState<ModelItem[]>([]);
+  const [tagList, setTagList] = useState<ModelItem[]>([]);
+  const [modelForm] = Form.useForm<ModelFormValues>();
 
-  const currentProductKey = productInfo?.key || productInfo?.productKey || productKey;
+  const currentProductKey =
+    toStringValue(productInfo?.key) || toStringValue(productInfo?.productKey) || productKey;
+  const isDeployed = toBoolean(productInfo?.status);
 
   const fetchDetail = async () => {
     if (!productKey) return;
@@ -81,12 +170,14 @@ const ProductDetailPage: React.FC = () => {
         deviceApi.model.tag({ productKey, pageNum: 1, pageSize: 999 }),
       ]);
 
-      const detailData = detailRes?.data || detailRes;
-      setProductInfo(detailData?.Info || detailData?.data || detailData || {});
-      setPropertyList((propertyRes?.data || propertyRes)?.list || (propertyRes?.data || propertyRes) || []);
-      setFunctionList((functionRes?.data || functionRes)?.list || (functionRes?.data || functionRes) || []);
-      setEventList((eventRes?.data || eventRes)?.list || (eventRes?.data || eventRes) || []);
-      setTagList((tagRes?.data || tagRes)?.list || (tagRes?.data || tagRes) || []);
+      const detailPayload = asRecord(asRecord(detailRes).data ?? detailRes);
+      const detailInfo = detailPayload.Info ?? detailPayload.data ?? detailPayload;
+
+      setProductInfo(asRecord(detailInfo) as ProductDetailInfo);
+      setPropertyList(getModelList(propertyRes));
+      setFunctionList(getModelList(functionRes));
+      setEventList(getModelList(eventRes));
+      setTagList(getModelList(tagRes));
     } catch {
       message.error('获取产品详情失败');
     } finally {
@@ -100,10 +191,16 @@ const ProductDetailPage: React.FC = () => {
 
   const handleDeploy = async (nextStatus: 'deploy' | 'undeploy') => {
     try {
+      const targetProductKey = currentProductKey || productKey;
+      if (!targetProductKey) {
+        message.error('缺少产品标识，操作失败');
+        return;
+      }
+
       if (nextStatus === 'deploy') {
-        await deviceApi.product.deploy(productKey);
+        await deviceApi.product.deploy(targetProductKey);
       } else {
-        await deviceApi.product.undeploy(productKey);
+        await deviceApi.product.undeploy(targetProductKey);
       }
       message.success(nextStatus === 'deploy' ? '发布成功' : '取消发布成功');
       fetchDetail();
@@ -112,25 +209,27 @@ const ProductDetailPage: React.FC = () => {
     }
   };
 
-  const handleImportModel = async (options: any) => {
-    const { file, onSuccess, onError } = options || {};
+  const handleImportModel: NonNullable<UploadProps['customRequest']> = async (options) => {
+    const { file, onSuccess, onError } = options;
     if (!currentProductKey) {
       message.error('缺少产品标识，无法导入');
       onError?.(new Error('MISSING_PRODUCT_KEY'));
       return;
     }
+
     setImporting(true);
     try {
+      const uploadFile = file as File;
       const formData = new FormData();
-      formData.append('file', file as File);
+      formData.append('file', uploadFile);
       formData.append('productKey', currentProductKey);
       await deviceApi.product.importModel(formData);
       message.success('物模型导入成功');
-      onSuccess?.({}, file);
+      onSuccess?.({});
       fetchDetail();
     } catch (error) {
       message.error('物模型导入失败');
-      onError?.(error);
+      onError?.(error instanceof Error ? error : new Error('IMPORT_MODEL_FAILED'));
     } finally {
       setImporting(false);
     }
@@ -142,7 +241,7 @@ const ProductDetailPage: React.FC = () => {
       return;
     }
     try {
-      const res: any = await deviceApi.product.exportModel({ productKey: currentProductKey });
+      const res = await deviceApi.product.exportModel({ productKey: currentProductKey });
       const blob = res instanceof Blob
         ? res
         : new Blob([JSON.stringify(res || {}, null, 2)], { type: 'application/json' });
@@ -153,30 +252,33 @@ const ProductDetailPage: React.FC = () => {
     }
   };
 
-  const openModelModal = (type: ModelTabType, row?: any) => {
+  const openModelModal = (type: ModelTabType, row?: ModelItem) => {
     setModelModalType(type);
     setEditingRow(row || null);
     setModelModalOpen(true);
     modelForm.resetFields();
+
     if (row) {
       modelForm.setFieldsValue({
-        key: row.key,
-        name: row.name,
-        dataType: row.dataType,
-        rw: row.rw,
-        type: row.type,
-        desc: row.desc,
+        key: toStringValue(row.key),
+        name: toStringValue(row.name),
+        dataType: toStringValue(row.dataType),
+        rw: toStringValue(row.rw),
+        type: toStringValue(row.type),
+        desc: toStringValue(row.desc),
       });
     }
   };
 
-  const handleDeleteModel = async (type: ModelTabType, row: any) => {
-    if (!row?.key) {
+  const handleDeleteModel = async (type: ModelTabType, row: ModelItem) => {
+    const modelKey = toStringValue(row.key);
+    const targetProductKey = currentProductKey || productKey;
+    if (!modelKey || !targetProductKey) {
       message.error('缺少 key，无法删除');
       return;
     }
     try {
-      await modelApiMap[type].del(productKey, row.key);
+      await modelApiMap[type].del(targetProductKey, modelKey);
       message.success('删除成功');
       fetchDetail();
     } catch {
@@ -187,17 +289,25 @@ const ProductDetailPage: React.FC = () => {
   const handleSaveModel = async () => {
     setModelSaving(true);
     try {
+      const targetProductKey = currentProductKey || productKey;
+      if (!targetProductKey) {
+        message.error('缺少产品标识，无法保存');
+        return;
+      }
+
       const values = await modelForm.validateFields();
-      const payload = {
-        ...editingRow,
+      const payload: AnyRecord = {
+        ...(editingRow ?? {}),
         ...values,
-        productKey,
+        productKey: targetProductKey,
       };
+
       if (editingRow) {
         await modelApiMap[modelModalType].edit(payload);
       } else {
         await modelApiMap[modelModalType].add(payload);
       }
+
       message.success(editingRow ? '更新成功' : '创建成功');
       setModelModalOpen(false);
       fetchDetail();
@@ -208,43 +318,63 @@ const ProductDetailPage: React.FC = () => {
     }
   };
 
-  const renderModelTable = (type: ModelTabType, list: any[]) => (
-    <>
-      <div className="model-table-toolbar">
-        <Button type="primary" icon={<PlusOutlined />} size="small" onClick={() => openModelModal(type)}>
-          新增
-        </Button>
-      </div>
-      <Table
-        rowKey={(row) => row.key || row.identifier || row.id}
-        size="small"
-        dataSource={list}
-        pagination={false}
-        columns={[
-          { title: '标识', dataIndex: 'key', key: 'key', width: 180 },
-          { title: '名称', dataIndex: 'name', key: 'name', width: 180 },
-          ...(type === 'property' ? [{ title: '数据类型', dataIndex: 'dataType', key: 'dataType', width: 140 } as any] : []),
-          ...(type === 'property' ? [{ title: '读写类型', dataIndex: 'rw', key: 'rw', width: 120 } as any] : []),
-          ...(type === 'event' ? [{ title: '类型', dataIndex: 'type', key: 'type', width: 120 } as any] : []),
-          ...(type === 'function' ? [{ title: '异步', dataIndex: 'async', key: 'async', width: 100, render: (v: any) => (v ? '是' : '否') } as any] : []),
-          { title: '描述', dataIndex: 'desc', key: 'desc' },
-          {
-            title: '操作',
-            key: 'action',
-            width: 160,
-            render: (_: any, row: any) => (
-              <Space>
-                <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openModelModal(type, row)}>编辑</Button>
-                <Popconfirm title="确认删除该模型项？" onConfirm={() => handleDeleteModel(type, row)}>
-                  <Button type="link" danger size="small" icon={<DeleteOutlined />}>删除</Button>
-                </Popconfirm>
-              </Space>
-            ),
-          },
-        ]}
-      />
-    </>
-  );
+  const renderModelTable = (type: ModelTabType, list: ModelItem[]) => {
+    const columns: TableColumnsType<ModelItem> = [
+      { title: '标识', dataIndex: 'key', key: 'key', width: 180 },
+      { title: '名称', dataIndex: 'name', key: 'name', width: 180 },
+    ];
+
+    if (type === 'property') {
+      columns.push({ title: '数据类型', dataIndex: 'dataType', key: 'dataType', width: 140 });
+      columns.push({ title: '读写类型', dataIndex: 'rw', key: 'rw', width: 120 });
+    }
+
+    if (type === 'event') {
+      columns.push({ title: '类型', dataIndex: 'type', key: 'type', width: 120 });
+    }
+
+    if (type === 'function') {
+      columns.push({
+        title: '异步',
+        dataIndex: 'async',
+        key: 'async',
+        width: 100,
+        render: (value: unknown) => (toBoolean(value) ? '是' : '否'),
+      });
+    }
+
+    columns.push({ title: '描述', dataIndex: 'desc', key: 'desc' });
+    columns.push({
+      title: '操作',
+      key: 'action',
+      width: 160,
+      render: (_: unknown, row: ModelItem) => (
+        <Space>
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openModelModal(type, row)}>编辑</Button>
+          <Popconfirm title="确认删除该模型项？" onConfirm={() => handleDeleteModel(type, row)}>
+            <Button type="link" danger size="small" icon={<DeleteOutlined />}>删除</Button>
+          </Popconfirm>
+        </Space>
+      ),
+    });
+
+    return (
+      <>
+        <div className="model-table-toolbar">
+          <Button type="primary" icon={<PlusOutlined />} size="small" onClick={() => openModelModal(type)}>
+            新增
+          </Button>
+        </div>
+        <Table
+          rowKey={(row) => toStringValue(row.key) || toStringValue(row.identifier) || toStringValue(row.id)}
+          size="small"
+          dataSource={list}
+          pagination={false}
+          columns={columns}
+        />
+      </>
+    );
+  };
 
   return (
     <div className="product-detail-page">
@@ -254,12 +384,12 @@ const ProductDetailPage: React.FC = () => {
           <Space>
             <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>返回</Button>
             <span>产品详情</span>
-            <Tag color={productInfo?.status ? 'success' : 'default'}>{productInfo?.status ? '已发布' : '未发布'}</Tag>
+            <Tag color={isDeployed ? 'success' : 'default'}>{isDeployed ? '已发布' : '未发布'}</Tag>
           </Space>
         )}
         extra={(
           <Space>
-            {productInfo?.status ? (
+            {isDeployed ? (
               <Button onClick={() => handleDeploy('undeploy')}>取消发布</Button>
             ) : (
               <Button type="primary" onClick={() => handleDeploy('deploy')}>发布</Button>
@@ -314,7 +444,15 @@ const ProductDetailPage: React.FC = () => {
       </Card>
 
       <Modal
-        title={`${editingRow ? '编辑' : '新增'}${modelModalType === 'property' ? '属性' : modelModalType === 'function' ? '功能' : modelModalType === 'event' ? '事件' : '标签'}`}
+        title={`${editingRow ? '编辑' : '新增'}${
+          modelModalType === 'property'
+            ? '属性'
+            : modelModalType === 'function'
+              ? '功能'
+              : modelModalType === 'event'
+                ? '事件'
+                : '标签'
+        }`}
         open={modelModalOpen}
         onOk={handleSaveModel}
         onCancel={() => setModelModalOpen(false)}

@@ -1,6 +1,6 @@
-import React from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Avatar, Dropdown, Badge, Button, Space, Switch } from 'antd';
+import React, { useMemo } from 'react';
+import { Outlet, useNavigate } from 'react-router-dom';
+import { Layout, Avatar, Dropdown, Badge, Button, Space, Switch } from 'antd';
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -14,12 +14,13 @@ import {
 } from '@ant-design/icons';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store';
-import { toggleSidebar, setTheme } from '../../store/slice/appSlice';
+import { setSidebarCollapsed, setTheme } from '../../store/slice/appSlice';
 import { logout } from '../../store/slice/userSlice';
 import { clearMenus } from '../../store/slice/menuSlice';
 import MenuRender from './navMenu';
 import BreadcrumbNav from './component/breadcrumb';
 import TagsView from './component/tagsView';
+import { applyThemeToDocument } from '../../utils/theme';
 import './index.css';
 
 const requestFullscreenSafely = async () => {
@@ -52,20 +53,17 @@ const requestFullscreenSafely = async () => {
 const { Header, Sider, Content } = Layout;
 
 const MainLayout: React.FC = () => {
-  const [collapsed, setCollapsed] = React.useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
   const dispatch = useDispatch();
 
   const { userInfo } = useSelector((state: RootState) => state.user);
-  const { theme } = useSelector((state: RootState) => state.app);
+  const { theme, sidebarCollapsed } = useSelector((state: RootState) => state.app);
 
   // 切换深色模式
   const toggleDarkMode = (checked: boolean) => {
     const newTheme = checked ? 'dark' : 'light';
     dispatch(setTheme(newTheme));
-    document.documentElement.setAttribute('data-theme', checked ? 'dark' : '');
-    document.body.className = checked ? 'dark-theme' : '';
+    applyThemeToDocument(newTheme);
   };
 
   const handleLogout = () => {
@@ -74,7 +72,7 @@ const MainLayout: React.FC = () => {
     navigate('/login', { replace: true });
   };
 
-  const handleMenuClick = (e: any) => {
+  const handleMenuClick = (e: { key: string }) => {
     switch (e.key) {
       case 'personal':
         navigate('/personal');
@@ -90,38 +88,41 @@ const MainLayout: React.FC = () => {
     }
   };
 
-  const userMenuItems = [
-    {
-      key: 'personal',
-      icon: <UserOutlined />,
-      label: '个人中心',
-    },
-    {
-      key: 'settings',
-      icon: <SettingOutlined />,
-      label: '系统设置',
-    },
-    {
-      type: 'divider' as const,
-    },
-    {
-      key: 'logout',
-      icon: <LogoutOutlined />,
-      label: '退出登录',
-    },
-  ];
+  const userMenuItems = useMemo(
+    () => [
+      {
+        key: 'personal',
+        icon: <UserOutlined />,
+        label: '个人中心',
+      },
+      {
+        key: 'settings',
+        icon: <SettingOutlined />,
+        label: '系统设置',
+      },
+      {
+        type: 'divider' as const,
+      },
+      {
+        key: 'logout',
+        icon: <LogoutOutlined />,
+        label: '退出登录',
+      },
+    ],
+    []
+  );
 
   return (
     <Layout className="main-layout">
       <Sider
         trigger={null}
         collapsible
-        collapsed={collapsed}
+        collapsed={sidebarCollapsed}
         theme={theme}
         className="main-sider"
       >
         <div className="logo-container">
-          {!collapsed ? (
+          {!sidebarCollapsed ? (
             <div className="logo-full">
               <img src="/logo.svg" alt="logo" className="logo-img" />
               <span className="logo-text">XunjiIOT</span>
@@ -138,8 +139,8 @@ const MainLayout: React.FC = () => {
           <div className="header-left">
             <Button
               type="text"
-              icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-              onClick={() => setCollapsed(!collapsed)}
+              icon={sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => dispatch(setSidebarCollapsed(!sidebarCollapsed))}
               className="trigger-btn"
             />
           </div>

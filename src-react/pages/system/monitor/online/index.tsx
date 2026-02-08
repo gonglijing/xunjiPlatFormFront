@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Space, Tag, message, Modal } from 'antd';
-import { SyncOutlined, LogoutOutlined } from '@ant-design/icons';
+import { Card, Table, Button, message, Modal } from 'antd';
+import { LogoutOutlined, SyncOutlined } from '@ant-design/icons';
 import sysApi from '../../../../api/system';
 import './index.css';
 
@@ -14,6 +14,12 @@ interface OnlineItem {
   os: string;
 }
 
+const getListAndTotal = (res: any) => {
+  const list = res?.list || res?.data?.list || res?.Data || [];
+  const total = res?.total ?? res?.data?.total ?? res?.Total ?? list.length;
+  return { list, total };
+};
+
 const OnlineList: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<OnlineItem[]>([]);
@@ -21,14 +27,16 @@ const OnlineList: React.FC = () => {
   const [params, setParams] = useState({
     pageNum: 1,
     pageSize: 10,
+    dateRange: [] as string[],
   });
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res: any = await sysApi.system.monitor.online();
-      setData(res.list || []);
-      setTotal(res.total || 0);
+      const res: any = await sysApi.online.getList(params);
+      const { list, total: listTotal } = getListAndTotal(res);
+      setData(list);
+      setTotal(listTotal);
     } catch (error) {
       message.error('获取在线用户失败');
     } finally {
@@ -46,7 +54,7 @@ const OnlineList: React.FC = () => {
       content: `确定要强退用户 "${record.userName}" 吗?`,
       onOk: async () => {
         try {
-          await sysApi.system.monitor.kickout(record.id);
+          await sysApi.online.strongBack(record.id);
           message.success('强退成功');
           fetchData();
         } catch (error) {
@@ -78,7 +86,14 @@ const OnlineList: React.FC = () => {
 
   return (
     <div className="online-container">
-      <Card title="在线用户">
+      <Card
+        title="在线用户"
+        extra={(
+          <Button icon={<SyncOutlined />} loading={loading} onClick={fetchData}>
+            刷新
+          </Button>
+        )}
+      >
         <Table
           columns={columns}
           dataSource={data}
@@ -88,7 +103,7 @@ const OnlineList: React.FC = () => {
             total,
             current: params.pageNum,
             pageSize: params.pageSize,
-            onChange: (page, pageSize) => setParams({ ...params, pageNum: page, pageSize }),
+            onChange: (page, pageSize) => setParams((prev) => ({ ...prev, pageNum: page, pageSize })),
           }}
         />
       </Card>
