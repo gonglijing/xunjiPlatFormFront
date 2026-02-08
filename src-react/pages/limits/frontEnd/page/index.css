@@ -1,0 +1,7 @@
+.limits-front-end-container {
+  padding: 20px;
+}
+
+.limits-front-end-container .ant-alert {
+  margin-bottom: 16px;
+}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Space, Tag, message, Descriptions, Spin } from 'antd';
 import { SyncOutlined } from '@ant-design/icons';
-import systemApi from '../../../api/system';
+import systemApi from '../../../../api/system';
 import './index.css';
 
 interface ServerInfo {

@@ -1,0 +1,20 @@
+.attribute-list-container,
+.dossier-list-container {
+  padding: 20px;
+  height: 100%;
+}
+
+.application-list-container,
+.assess-list-container {
+  padding: 20px;
+}
+
+.limits-front-end-container,
+.limits-back-end-container {
+  padding: 20px;
+}
+
+.limits-front-end-container .ant-alert,
+.limits-back-end-container .ant-alert {
+  margin-bottom: 16px;
+}

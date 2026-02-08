@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Space, Input, Tag, Modal, Form, Select, message, Popconfirm } from 'antd';
-import { PlusOutlined, SyncOutlined, EditOutlined, DeleteOutlined, RefreshOutlined } from '@ant-design/icons';
+import { PlusOutlined, SyncOutlined, EditOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import systemApi from '../../../api/system';
 import './index.css';
 
@@ -143,7 +143,7 @@ const ApiList: React.FC = () => {
         title="API管理"
         extra={
           <Space>
-            <Button icon={<RefreshOutlined />} onClick={handleRefresh}>
+            <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
               刷新
             </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => showEdit()}>

@@ -1,0 +1,7 @@
+.limits-back-end-container {
+  padding: 20px;
+}
+
+.limits-back-end-container .ant-alert {
+  margin-bottom: 16px;
+}

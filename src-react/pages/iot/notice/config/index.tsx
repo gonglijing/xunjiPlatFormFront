@@ -38,7 +38,7 @@ const NoticeConfigList: React.FC = () => {
   };
 
   const toSetting = (value: string) => {
-    navigate(`/iotmanager/noticeservices/config/setting/${value}`);
+    navigate(`/notice/config/setting/${value}`);
   };
 
   const toEdit = (value: string) => {

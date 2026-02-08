@@ -1,0 +1,17 @@
+.basic-config-container {
+  display: flex;
+  gap: 16px;
+  padding: 20px;
+}
+
+.basic-config-content,
+.safe-config-content {
+  padding: 10px;
+}
+
+.basic-config-content h3,
+.safe-config-content h3 {
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f0f0f0;
+}

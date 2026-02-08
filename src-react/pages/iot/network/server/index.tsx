@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, Table, Button, Space, Input, Tag, Modal, message, Switch, Popconfirm } from 'antd';
 import { PlusOutlined, SyncOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import networkApi from '../../../api/network';
+import networkApi from '../../../../api/network';
 import './index.css';
 
 interface ServerItem {
@@ -59,21 +59,21 @@ const ServerList: React.FC = () => {
   };
 
   const toCreate = () => {
-    navigate('/iotmanager/network/server/create');
+    navigate('/network/server/create');
   };
 
   const toDetail = (id: number) => {
-    navigate(`/iotmanager/network/server/detail/${id}`);
+    navigate(`/network/server/edit/${id}`);
   };
 
   const toEdit = (id: number) => {
-    navigate(`/iotmanager/network/server/edit/${id}`);
+    navigate(`/network/server/edit/${id}`);
   };
 
   const handleStatusChange = async (record: ServerItem) => {
     try {
       const newStatus = record.status === 1 ? 0 : 1;
-      await networkApi.server.changeServerStatus({ id: record.id, status: newStatus });
+      await networkApi.server.status({ id: record.id, status: newStatus });
       message.success(newStatus ? '已启用' : '已禁用');
       fetchData();
     } catch (error) {
@@ -83,7 +83,7 @@ const ServerList: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      await networkApi.server.deleteItem({ ids: [id] });
+      await networkApi.server.del({ ids: [id] });
       message.success('删除成功');
       fetchData();
     } catch (error) {

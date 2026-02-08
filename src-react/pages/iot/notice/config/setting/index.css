@@ -1,0 +1,51 @@
+.notice-setting-container {
+  padding: 20px;
+}
+
+.notice-card {
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+
+.notice-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.notice-card-body {
+  display: flex;
+  padding: 16px;
+  align-items: center;
+}
+
+.notice-card-avatar {
+  margin-right: 16px;
+}
+
+.notice-card-content {
+  flex: 1;
+}
+
+.notice-card-title {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.notice-card-type {
+  font-size: 14px;
+  color: #666;
+}
+
+.notice-card-tools {
+  display: flex;
+  border-top: 1px solid #f0f0f0;
+  padding: 8px 16px;
+  justify-content: center;
+  gap: 16px;
+}
+
+.notice-card-tools button {
+  padding: 4px 0;
+}

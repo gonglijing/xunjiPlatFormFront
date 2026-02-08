@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Space, Input, Tag, Modal, Form, Select, message } from 'antd';
-import { PlusOutlined, SyncOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, SyncOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
 import alarmApi from '../../../../api/alarm';
 import './index.css';
 
@@ -29,7 +29,7 @@ const AlarmSettingList: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res: any = await alarmApi.common.getList(params);
+      const res: any = await alarmApi.rule.getList(params);
       setData(res.list || []);
       setTotal(res.total || 0);
     } catch (error) {
@@ -62,7 +62,7 @@ const AlarmSettingList: React.FC = () => {
       content: '确定要删除这条告警规则吗？',
       onOk: async () => {
         try {
-          await alarmApi.common.delete(id);
+          await alarmApi.rule.del({ ids: [id] });
           message.success('删除成功');
           fetchData();
         } catch (error) {
@@ -75,7 +75,7 @@ const AlarmSettingList: React.FC = () => {
   const handleStatusChange = async (record: AlarmRuleItem) => {
     try {
       const newStatus = record.status === 1 ? 0 : 1;
-      await alarmApi.common.edit({ ...record, status: newStatus });
+      await alarmApi.rule.edit({ ...record, status: newStatus });
       message.success('状态修改成功');
       fetchData();
     } catch (error) {
@@ -93,9 +93,11 @@ const AlarmSettingList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      width: 100,
+      width: 120,
       render: (status: number, record: AlarmRuleItem) => (
-        <Tag color={status === 1 ? 'green' : 'red'}>{status === 1 ? '已启用' : '已禁用'}</Tag>
+        <Tag color={status === 1 ? 'green' : 'red'} onClick={() => handleStatusChange(record)} style={{ cursor: 'pointer' }}>
+          {status === 1 ? '已启用' : '已禁用'}
+        </Tag>
       ),
     },
     { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 160 },
@@ -160,7 +162,6 @@ const AlarmSettingList: React.FC = () => {
   );
 };
 
-// 编辑弹窗组件
 interface EditModalProps {
   visible: boolean;
   data: AlarmRuleItem | null;
@@ -177,6 +178,7 @@ const EditModal: React.FC<EditModalProps> = ({ visible, data, onClose, onSuccess
       form.setFieldsValue(data);
     } else if (visible && !data) {
       form.resetFields();
+      form.setFieldsValue({ status: 1 });
     }
   }, [visible, data, form]);
 
@@ -185,14 +187,17 @@ const EditModal: React.FC<EditModalProps> = ({ visible, data, onClose, onSuccess
       const values = await form.validateFields();
       setLoading(true);
       if (data?.id) {
-        await alarmApi.common.edit({ ...data, ...values });
+        await alarmApi.rule.edit({ ...data, ...values });
       } else {
-        await alarmApi.common.add(values);
+        await alarmApi.rule.add(values);
       }
       message.success(data?.id ? '编辑成功' : '新增成功');
       onSuccess();
-    } catch (error) {
-      message.error('操作失败');
+      onClose();
+    } catch (error: any) {
+      if (!error?.errorFields) {
+        message.error('操作失败');
+      }
     } finally {
       setLoading(false);
     }
@@ -207,7 +212,7 @@ const EditModal: React.FC<EditModalProps> = ({ visible, data, onClose, onSuccess
       confirmLoading={loading}
       width={600}
     >
-      <Form form={form} labelWidth={100} labelPosition="left">
+      <Form form={form} layout="vertical">
         <Form.Item name="name" label="规则名称" rules={[{ required: true }]}>
           <Input placeholder="请输入规则名称" />
         </Form.Item>
@@ -216,9 +221,9 @@ const EditModal: React.FC<EditModalProps> = ({ visible, data, onClose, onSuccess
         </Form.Item>
         <Form.Item name="alarmLevelId" label="告警级别" rules={[{ required: true }]}>
           <Select placeholder="请选择告警级别">
-            {/* <Select.Option value={1}>严重</Select.Option>
+            <Select.Option value={1}>严重</Select.Option>
             <Select.Option value={2}>警告</Select.Option>
-            <Select.Option value={3}>提示</Select.Option> */}
+            <Select.Option value={3}>提示</Select.Option>
           </Select>
         </Form.Item>
         <Form.Item name="triggerType" label="触发类型" rules={[{ required: true }]}>

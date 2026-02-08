@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Space, Input, Tag, Modal, message, Switch, Popconfirm } from 'antd';
 import { PlusOutlined, SyncOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import networkApi from '../../../api/network';
+import networkApi from '../../../../api/network';
 import './index.css';
 
 interface TunnelItem {
@@ -55,21 +55,21 @@ const TunnelList: React.FC = () => {
   };
 
   const toCreate = () => {
-    navigate('/iotmanager/network/tunnel/create');
+    navigate('/network/tunnel/create');
   };
 
   const toDetail = (id: number) => {
-    navigate(`/iotmanager/network/tunnel/detail/${id}`);
+    navigate(`/network/tunnel/edit/${id}`);
   };
 
   const toEdit = (id: number) => {
-    navigate(`/iotmanager/network/tunnel/edit/${id}`);
+    navigate(`/network/tunnel/edit/${id}`);
   };
 
   const handleStatusChange = async (record: TunnelItem) => {
     try {
       const newStatus = record.status === 1 ? 0 : 1;
-      await networkApi.tunnel.changeTunnelStatus({ id: record.id, status: newStatus });
+      await networkApi.tunnel.status({ id: record.id, status: newStatus });
       message.success(newStatus ? '已启用' : '已禁用');
       fetchData();
     } catch (error) {
@@ -79,7 +79,7 @@ const TunnelList: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      await networkApi.tunnel.deleteItem({ ids: [id] });
+      await networkApi.tunnel.del({ ids: [id] });
       message.success('删除成功');
       fetchData();
     } catch (error) {

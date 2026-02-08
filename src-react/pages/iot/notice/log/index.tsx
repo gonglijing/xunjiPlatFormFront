@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Space, DatePicker, Tag, Modal, message } from 'antd';
 import { SearchOutlined, RedoOutlined, EyeOutlined } from '@ant-design/icons';
-import noticeApi from '../../../api/notice';
+import noticeApi from '../../../../api/notice';
 import './index.css';
 
 const { RangePicker } = DatePicker;

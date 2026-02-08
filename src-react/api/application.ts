@@ -1,12 +1,11 @@
 import { get, post, del, put } from '/@/utils/request';
 
 export default {
-  application: {
-    getList: (params?: object) => get('/system/app/list', params),
-    add: (data: object) => post('/system/app/add', data),
-    edit: (data: object) => put('/system/app/edit', data),
-    del: (id: number) => del('/system/app/delete', { id }),
-    detail: (id: number) => get('/system/app/detail', { id }),
-    changeStatus: (data: object) => post('/system/app/changeStatus', data),
-  }
+  getList: (params?: object) => get('/application/list', params),
+  getAll: () => get('/application/getAll'),
+  add: (data: object) => post('/application/add', data),
+  edit: (data: object) => put('/application/edit', data),
+  del: (id: number) => del('/application/delete', { id }),
+  detail: (id: number) => get('/application/detail', { id }),
+  changeStatus: (data: object) => post('/application/changeStatus', data),
 };

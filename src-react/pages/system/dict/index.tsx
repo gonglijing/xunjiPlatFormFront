@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Space, Input, Tag, Modal, Form, Select, message, Popconfirm } from 'antd';
 import { PlusOutlined, SyncOutlined, EditOutlined, DeleteOutlined, FolderOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import systemApi from '../../../api/system';
 import './index.css';
 
@@ -14,6 +15,7 @@ interface DictItem {
 }
 
 const DictList: React.FC = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<DictItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -97,7 +99,7 @@ const DictList: React.FC = () => {
           <Button
             type="link"
             icon={<FolderOutlined />}
-            onClick={() => message.info('字典数据管理功能开发中')}
+            onClick={() => navigate(`/system/dict/data/${record.type}`)}
           >
             数据
           </Button>
